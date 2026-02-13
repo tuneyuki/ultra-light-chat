@@ -1,0 +1,137 @@
+/* ===== Theme Variables ===== */
+:root {
+	/* Backgrounds */
+	--bg-primary: #ffffff;
+	--bg-secondary: #f5f6f8;
+	--bg-tertiary: #edf0f4;
+	--bg-sidebar: #1b3a6b;
+	--bg-input: #f5f6f8;
+	--bg-hover: #e8ecf1;
+	--bg-active: #dce6f5;
+	--bg-code: #f0f2f5;
+	--bg-code-header: #e4e8ee;
+
+	/* Text */
+	--text-primary: #1a1a2e;
+	--text-secondary: #4a4a5a;
+	--text-muted: #8a8a9a;
+
+	/* Sidebar (light: white text on blue) */
+	--sidebar-text: #ffffff;
+	--sidebar-text-muted: rgba(255, 255, 255, 0.6);
+	--sidebar-hover: rgba(255, 255, 255, 0.1);
+	--sidebar-active: rgba(255, 255, 255, 0.2);
+	--sidebar-border: rgba(255, 255, 255, 0.2);
+
+	/* Borders */
+	--border-primary: #dde1e8;
+	--border-secondary: #c8cdd5;
+
+	/* Accent */
+	--accent: #1b3a6b;
+	--accent-hover: #244d8a;
+	--accent-text: #ffffff;
+	--accent-light: #dce6f5;
+
+	/* Avatars */
+	--avatar-user: #1b3a6b;
+	--avatar-assistant: #0f7b5f;
+
+	/* Buttons */
+	--btn-primary-bg: #1b3a6b;
+	--btn-primary-color: #ffffff;
+	--btn-primary-hover: #244d8a;
+	--btn-disabled-bg: #dde1e8;
+	--btn-disabled-color: #8a8a9a;
+
+	/* Overlay */
+	--overlay-bg: rgba(0, 0, 0, 0.3);
+
+	/* Header */
+	--header-border: #1b3a6b;
+	--header-bg: #ffffff;
+	--header-text: #1b3a6b;
+
+	/* Sidebar shadow */
+	--sidebar-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+:root.dark {
+	/* Backgrounds */
+	--bg-primary: #212121;
+	--bg-secondary: #2f2f2f;
+	--bg-tertiary: #2a2a2a;
+	--bg-sidebar: #171717;
+	--bg-input: #2f2f2f;
+	--bg-hover: #2a2a2a;
+	--bg-active: #2f2f2f;
+	--bg-code: #1a1a1a;
+	--bg-code-header: #2a2a2a;
+
+	/* Text */
+	--text-primary: #ececec;
+	--text-secondary: #aaa;
+	--text-muted: #888;
+
+	/* Sidebar (dark: same as text) */
+	--sidebar-text: #ececec;
+	--sidebar-text-muted: #888;
+	--sidebar-hover: #2a2a2a;
+	--sidebar-active: #2f2f2f;
+	--sidebar-border: #333;
+
+	/* Borders */
+	--border-primary: #393939;
+	--border-secondary: #424242;
+
+	/* Accent */
+	--accent: #5b5fc7;
+	--accent-hover: #6b6fd7;
+	--accent-text: #ffffff;
+	--accent-light: #2f2f2f;
+
+	/* Avatars */
+	--avatar-user: #5b5fc7;
+	--avatar-assistant: #19c37d;
+
+	/* Buttons */
+	--btn-primary-bg: #ececec;
+	--btn-primary-color: #212121;
+	--btn-primary-hover: #ffffff;
+	--btn-disabled-bg: #424242;
+	--btn-disabled-color: #666;
+
+	/* Overlay */
+	--overlay-bg: rgba(0, 0, 0, 0.5);
+
+	/* Header */
+	--header-border: #2a2a2a;
+	--header-bg: transparent;
+	--header-text: #aaa;
+
+	/* Sidebar shadow */
+	--sidebar-shadow: none;
+}
+
+/* ===== Global Reset ===== */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+html, body {
+	height: 100%;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	font-size: 16px;
+	line-height: 1.6;
+	color: var(--text-primary);
+	background: var(--bg-primary);
+}
+
+body {
+	display: flex;
+	flex-direction: column;
+}
