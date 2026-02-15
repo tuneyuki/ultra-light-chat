@@ -7,7 +7,7 @@ const API_URL = '/api/chat';
  * @param {(delta: string) => void} onDelta - Called for each text chunk
  * @param {(id: string | null) => void} onChatId - Called when a chat ID is returned
  * @param {AbortSignal} [signal] - Optional abort signal
- * @param {{ model?: string, systemPrompt?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string}) => void }} [options] - Optional parameters
+ * @param {{ model?: string, systemPrompt?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string, container_id: string}) => void }} [options] - Optional parameters
  * @returns {Promise<void>}
  */
 export async function streamChat(input, chatId, onDelta, onChatId, signal, options) {
@@ -107,7 +107,8 @@ export async function streamChat(input, chatId, onDelta, onChatId, signal, optio
 					options.onOutputFile({
 						file_id: data.file_id,
 						filename: data.filename || 'output',
-						mime_type: data.mime_type || 'application/octet-stream'
+						mime_type: data.mime_type || 'application/octet-stream',
+						container_id: data.container_id || ''
 					});
 				}
 

@@ -9,6 +9,7 @@
  * @property {string} mimeType
  * @property {number} size
  * @property {'input' | 'output'} direction
+ * @property {string} [containerId]
  */
 
 /**

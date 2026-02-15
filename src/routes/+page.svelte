@@ -294,7 +294,8 @@
 							filename: file.filename,
 							mimeType: file.mime_type,
 							size: 0,
-							direction: 'output'
+							direction: 'output',
+							containerId: file.container_id || undefined
 						});
 						persistCurrentConversation();
 					}
@@ -323,6 +324,9 @@
 		messages = [];
 		chatId = null;
 		messageImageUrls = {};
+		webSearch = false;
+		imageGeneration = false;
+		codeInterpreter = false;
 	}
 
 	/**

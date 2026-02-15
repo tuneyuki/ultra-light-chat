@@ -1,13 +1,5 @@
 <script>
-	import { marked } from 'marked';
-
-	const renderer = new marked.Renderer();
-	renderer.code = function ({ text, lang }) {
-		const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-		const langLabel = lang || '';
-		return `<div class="code-block"><div class="code-header"><span class="code-lang">${langLabel}</span><button class="copy-btn" data-code="${text.replace(/"/g, '&quot;')}">Copy</button></div><pre><code>${escaped}</code></pre></div>`;
-	};
-	marked.setOptions({ breaks: true, renderer });
+	import { marked, Renderer } from 'marked';
 
 	/** @type {{ message: import('$lib/types.js').Message, isStreaming: boolean, isLast: boolean, imageUrls?: string[], streamingStatus?: string, streamingCode?: string }} */
 	let { message, isStreaming, isLast, imageUrls = [], streamingStatus = '', streamingCode = '' } = $props();
@@ -32,6 +24,36 @@
 
 	let inputFiles = $derived(message.files?.filter((f) => f.direction === 'input') ?? []);
 	let outputFiles = $derived(message.files?.filter((f) => f.direction === 'output') ?? []);
+
+	/**
+	 * @param {string} content
+	 * @param {import('$lib/types.js').FileAttachment[]} files
+	 */
+	function renderMarkdown(content, files) {
+		const renderer = new Renderer();
+		renderer.code = function ({ text, lang }) {
+			const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+			const langLabel = lang || '';
+			return `<div class="code-block"><div class="code-header"><span class="code-lang">${langLabel}</span><button class="copy-btn" data-code="${text.replace(/"/g, '&quot;')}">Copy</button></div><pre><code>${escaped}</code></pre></div>`;
+		};
+
+		const defaultLinkRenderer = renderer.link.bind(renderer);
+		renderer.link = function (token) {
+			if (token.href && token.href.startsWith('sandbox:')) {
+				const sandboxPath = token.href.replace('sandbox:', '');
+				const filename = sandboxPath.split('/').pop() || 'download';
+				const file = files.find((f) => f.filename === filename);
+				if (file) {
+					const href = `/api/files/${file.id}?filename=${encodeURIComponent(file.filename)}${file.containerId ? '&container_id=' + encodeURIComponent(file.containerId) : ''}`;
+					const text = renderer.parser?.parseInline(token.tokens) ?? filename;
+					return `<a href="${href}" target="_blank" rel="noopener">${text}</a>`;
+				}
+			}
+			return defaultLinkRenderer(token);
+		};
+
+		return marked.parse(content, { breaks: true, renderer });
+	}
 </script>
 
 <div class="message {message.role}">
@@ -78,7 +100,7 @@
 					</span>
 				{/if}
 			{:else if message.role === 'assistant'}
-				<div class="content markdown">{@html marked.parse(message.content)}</div>
+				<div class="content markdown">{@html renderMarkdown(message.content, outputFiles)}</div>
 			{:else}
 				<div class="content">{message.content}</div>
 			{/if}
@@ -92,7 +114,7 @@
 			{#if message.role === 'assistant' && outputFiles.length > 0}
 				<div class="file-attachments output-files">
 					{#each outputFiles as file}
-						<a class="file-download-pill" href="/api/files/{file.id}?filename={encodeURIComponent(file.filename)}" target="_blank" rel="noopener">
+						<a class="file-download-pill" href="/api/files/{file.id}?filename={encodeURIComponent(file.filename)}{file.containerId ? '&container_id=' + encodeURIComponent(file.containerId) : ''}" target="_blank" rel="noopener">
 							<svg class="file-pill-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><polyline points="9 2 9 6 13 6"/></svg>
 							{file.filename}
 							<svg class="file-download-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v10M8 12l-3-3M8 12l3-3M3 14h10"/></svg>
