@@ -1,6 +1,50 @@
 <script>
-	/** @type {{ models: { id: string, label: string }[], currentModel: string, currentSystemPrompt: string }} */
-	let { models, currentModel = $bindable(), currentSystemPrompt = $bindable() } = $props();
+	/** @type {{
+	 *   models: { id: string, label: string }[],
+	 *   currentModel: string,
+	 *   currentSystemPrompt: string,
+	 *   prompts: import('$lib/promptStore.js').SavedPrompt[],
+	 *   onSavePrompt: (prompt: import('$lib/promptStore.js').SavedPrompt) => void,
+	 *   onDeletePrompt: (id: string) => void
+	 * }} */
+	let {
+		models,
+		currentModel = $bindable(),
+		currentSystemPrompt = $bindable(),
+		prompts = [],
+		onSavePrompt,
+		onDeletePrompt
+	} = $props();
+
+	let selectedPromptId = $state('');
+
+	function handlePromptSelect() {
+		if (!selectedPromptId) {
+			currentSystemPrompt = '';
+			return;
+		}
+		const found = prompts.find((p) => p.id === selectedPromptId);
+		if (found) {
+			currentSystemPrompt = found.content;
+		}
+	}
+
+	function handleSave() {
+		const content = currentSystemPrompt.trim();
+		if (!content) return;
+		const name = prompt('プロンプト名を入力:');
+		if (!name) return;
+		const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+		onSavePrompt({ id, name, content });
+		selectedPromptId = id;
+	}
+
+	function handleDelete() {
+		if (!selectedPromptId) return;
+		onDeletePrompt(selectedPromptId);
+		selectedPromptId = '';
+		currentSystemPrompt = '';
+	}
 </script>
 
 <div class="empty-state">
@@ -17,7 +61,23 @@
 			</select>
 		</div>
 		<div class="setup-field">
-			<label class="setup-label" for="system-prompt">System Prompt</label>
+			<div class="prompt-header">
+				<label class="setup-label" for="system-prompt">System Prompt</label>
+				<select
+					class="prompt-select"
+					bind:value={selectedPromptId}
+					onchange={handlePromptSelect}
+				>
+					<option value="">なし</option>
+					{#each prompts as p (p.id)}
+						<option value={p.id}>{p.name}</option>
+					{/each}
+				</select>
+				<button class="prompt-btn" onclick={handleSave} title="現在のプロンプトを保存">+</button>
+				{#if selectedPromptId}
+					<button class="prompt-btn prompt-btn-delete" onclick={handleDelete} title="選択中のプロンプトを削除">×</button>
+				{/if}
+			</div>
 			<textarea
 				id="system-prompt"
 				class="setup-textarea"
@@ -69,6 +129,54 @@
 	.setup-label {
 		font-size: 0.8rem;
 		color: var(--text-muted);
+	}
+
+	.prompt-header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.prompt-select {
+		flex: 1;
+		min-width: 0;
+		padding: 4px 8px;
+		border: 1px solid var(--border-primary);
+		border-radius: 6px;
+		background: var(--bg-input);
+		color: var(--text-primary);
+		font: inherit;
+		font-size: 0.8rem;
+		outline: none;
+		cursor: pointer;
+	}
+
+	.prompt-select:focus {
+		border-color: var(--border-secondary);
+	}
+
+	.prompt-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 26px;
+		border: 1px solid var(--border-primary);
+		border-radius: 6px;
+		background: var(--bg-input);
+		color: var(--text-primary);
+		font-size: 1rem;
+		cursor: pointer;
+		flex-shrink: 0;
+		transition: border-color 0.15s;
+	}
+
+	.prompt-btn:hover {
+		border-color: var(--border-secondary);
+	}
+
+	.prompt-btn-delete {
+		color: #e55;
 	}
 
 	.setup-select {

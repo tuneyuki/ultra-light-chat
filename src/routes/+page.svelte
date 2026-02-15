@@ -2,6 +2,7 @@
 	import { streamChat } from '$lib/api.js';
 	import { loadConversations, saveConversation, deleteConversation, generateTitle } from '$lib/chatStore.js';
 	import { saveImage, loadImage } from '$lib/imageStore.js';
+	import { loadPrompts, savePrompt, deletePrompt } from '$lib/promptStore.js';
 	import { MODELS, DEFAULT_MODEL } from '$lib/models.js';
 	import Sidebar from '$lib/Sidebar.svelte';
 	import SettingsModal from '$lib/SettingsModal.svelte';
@@ -28,6 +29,9 @@
 	let codeInterpreter = $state(false);
 	let currentTheme = $state('dark');
 	let showSettings = $state(false);
+
+	/** @type {import('$lib/promptStore.js').SavedPrompt[]} */
+	let prompts = $state([]);
 
 	/** imageId → objectURL cache */
 	/** @type {Map<string, string>} */
@@ -77,6 +81,7 @@
 
 	onMount(() => {
 		conversations = loadConversations();
+		prompts = loadPrompts();
 
 		const savedTheme = localStorage.getItem('ulc-theme') || 'dark';
 		applyTheme(savedTheme);
@@ -355,6 +360,18 @@
 			handleNewChat();
 		}
 	}
+
+	/** @param {import('$lib/promptStore.js').SavedPrompt} p */
+	function handleSavePrompt(p) {
+		savePrompt(p);
+		prompts = loadPrompts();
+	}
+
+	/** @param {string} id */
+	function handleDeletePrompt(id) {
+		deletePrompt(id);
+		prompts = loadPrompts();
+	}
 </script>
 
 {#if showSettings}
@@ -381,7 +398,7 @@
 		</header>
 		<main class="messages">
 			{#if messages.length === 0}
-				<EmptyState models={MODELS} bind:currentModel bind:currentSystemPrompt />
+				<EmptyState models={MODELS} bind:currentModel bind:currentSystemPrompt {prompts} onSavePrompt={handleSavePrompt} onDeletePrompt={handleDeletePrompt} />
 			{/if}
 
 			{#each messages as msg, i}
