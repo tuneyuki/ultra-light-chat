@@ -64,6 +64,21 @@ export async function POST({ request }) {
 			const encoder = new TextEncoder();
 			const decoder = new TextDecoder();
 			let buffer = '';
+			/** @type {Set<string>} */
+			const sentFileIds = new Set();
+
+			/**
+			 * @param {string} file_id
+			 * @param {string} filename
+			 * @param {string} mime_type
+			 * @param {string} container_id
+			 */
+			function emitOutputFile(file_id, filename, mime_type, container_id) {
+				if (sentFileIds.has(file_id)) return;
+				sentFileIds.add(file_id);
+				const event = `data: ${JSON.stringify({ type: 'output_file', file_id, filename, mime_type, container_id })}\n\n`;
+				controller.enqueue(encoder.encode(event));
+			}
 
 			while (true) {
 				const { done, value } = await reader.read();
@@ -107,13 +122,48 @@ export async function POST({ request }) {
 							controller.enqueue(encoder.encode(imgEvent));
 						}
 
-						// When response is complete, extract generated images and send chat_id
+						// Extract output files from code_interpreter_call completed
+						if (data.type === 'response.code_interpreter_call.completed' && data.code_interpreter_call?.outputs) {
+							const cid = data.code_interpreter_call?.container_id || '';
+							for (const output of data.code_interpreter_call.outputs) {
+								if (output.type === 'files' && output.files) {
+									for (const file of output.files) {
+										emitOutputFile(file.file_id, file.filename || 'output', file.mime_type || 'application/octet-stream', cid);
+									}
+								}
+							}
+						}
+
+						// When response is complete, extract generated images, output files, and send chat_id
 						if (data.type === 'response.completed' && data.response?.id) {
 							if (data.response.output) {
 								for (const item of data.response.output) {
 									if (item.type === 'image_generation_call' && item.result) {
 										const imgEvent = `data: ${JSON.stringify({ type: 'image_complete', data: item.result })}\n\n`;
 										controller.enqueue(encoder.encode(imgEvent));
+									}
+									// Extract output files from code_interpreter_call in completed response
+									if (item.type === 'code_interpreter_call' && item.outputs) {
+										const cid = item.container_id || '';
+										for (const output of item.outputs) {
+											if (output.type === 'files' && output.files) {
+												for (const file of output.files) {
+													emitOutputFile(file.file_id, file.filename || 'output', file.mime_type || 'application/octet-stream', cid);
+												}
+											}
+										}
+									}
+									// Extract file citations from text content annotations
+									if (item.type === 'message' && item.content) {
+										for (const content of item.content) {
+											if (content.annotations) {
+												for (const ann of content.annotations) {
+													if (ann.type === 'container_file_citation' && ann.file_id) {
+														emitOutputFile(ann.file_id, ann.filename || 'output', ann.mime_type || 'application/octet-stream', ann.container_id || '');
+													}
+												}
+											}
+										}
 									}
 								}
 							}

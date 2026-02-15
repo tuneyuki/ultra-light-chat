@@ -7,21 +7,31 @@ const API_URL = '/api/chat';
  * @param {(delta: string) => void} onDelta - Called for each text chunk
  * @param {(id: string | null) => void} onChatId - Called when a chat ID is returned
  * @param {AbortSignal} [signal] - Optional abort signal
- * @param {{ model?: string, systemPrompt?: string, images?: string[], webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void }} [options] - Optional model, system prompt, base64 images, web search toggle, image generation toggle, code interpreter toggle, image callback, status callback, and code delta callback
+ * @param {{ model?: string, systemPrompt?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string}) => void }} [options] - Optional parameters
  * @returns {Promise<void>}
  */
 export async function streamChat(input, chatId, onDelta, onChatId, signal, options) {
 	/** @type {Record<string, unknown>} */
 	const body = {};
 
-	if (options?.images && options.images.length > 0) {
-		/** @type {Array<{ type: string, text?: string, image_url?: string }>} */
+	const hasImages = options?.images && options.images.length > 0;
+	const hasFiles = options?.files && options.files.length > 0;
+
+	if (hasImages || hasFiles) {
+		/** @type {Array<{ type: string, text?: string, image_url?: string, filename?: string, file_data?: string }>} */
 		const content = [];
 		if (input) {
 			content.push({ type: 'input_text', text: input });
 		}
-		for (const dataUrl of options.images) {
-			content.push({ type: 'input_image', image_url: dataUrl });
+		if (hasImages) {
+			for (const dataUrl of /** @type {string[]} */ (options.images)) {
+				content.push({ type: 'input_image', image_url: dataUrl });
+			}
+		}
+		if (hasFiles) {
+			for (const file of /** @type {Array<{filename: string, dataUrl: string}>} */ (options.files)) {
+				content.push({ type: 'input_file', filename: file.filename, file_data: file.dataUrl });
+			}
 		}
 		body.input = [{ role: 'user', content }];
 	} else {
@@ -91,6 +101,14 @@ export async function streamChat(input, chatId, onDelta, onChatId, signal, optio
 				if (data.type === 'code_delta' && data.delta && options?.onCodeDelta) {
 					options.onCodeDelta(data.delta);
 					await new Promise((r) => setTimeout(r, 0));
+				}
+
+				if (data.type === 'output_file' && data.file_id && options?.onOutputFile) {
+					options.onOutputFile({
+						file_id: data.file_id,
+						filename: data.filename || 'output',
+						mime_type: data.mime_type || 'application/octet-stream'
+					});
 				}
 
 				if (data.chat_id) {

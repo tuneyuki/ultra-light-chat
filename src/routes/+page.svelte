@@ -2,7 +2,7 @@
 	import { streamChat } from '$lib/api.js';
 	import { loadConversations, saveConversation, deleteConversation, generateTitle } from '$lib/chatStore.js';
 	import { saveImage, loadImage } from '$lib/imageStore.js';
-	import { MODELS } from '$lib/models.js';
+	import { MODELS, DEFAULT_MODEL } from '$lib/models.js';
 	import Sidebar from '$lib/Sidebar.svelte';
 	import SettingsModal from '$lib/SettingsModal.svelte';
 	import EmptyState from '$lib/EmptyState.svelte';
@@ -20,7 +20,7 @@
 	/** @type {import('$lib/types.js').Conversation[]} */
 	let conversations = $state([]);
 	let activeConversationId = $state(/** @type {string | null} */ (null));
-	let currentModel = $state('gpt-4.1-mini');
+	let currentModel = $state(DEFAULT_MODEL);
 	let currentSystemPrompt = $state('');
 
 	let webSearch = $state(false);
@@ -107,6 +107,9 @@
 				if (m.imageIds && m.imageIds.length > 0) {
 					msg.imageIds = m.imageIds;
 				}
+				if (m.files && m.files.length > 0) {
+					msg.files = m.files;
+				}
 				return msg;
 			}),
 			chatId,
@@ -165,8 +168,9 @@
 	/**
 	 * @param {string} text
 	 * @param {File[]} images
+	 * @param {File[]} files
 	 */
-	async function handleSend(text, images) {
+	async function handleSend(text, images, files) {
 		if (!activeConversationId) {
 			activeConversationId = generateId();
 		}
@@ -181,7 +185,25 @@
 			imageIds.push(id);
 			const dataUrl = await fileToDataUrl(file);
 			base64Images.push(dataUrl);
-			// Save blob to IndexedDB
+			saveImage(id, file);
+		}
+
+		/** @type {Array<{filename: string, dataUrl: string}>} */
+		const base64Files = [];
+		/** @type {import('$lib/types.js').FileAttachment[]} */
+		const fileAttachments = [];
+
+		for (const file of files) {
+			const id = generateId();
+			const dataUrl = await fileToDataUrl(file);
+			base64Files.push({ filename: file.name, dataUrl });
+			fileAttachments.push({
+				id,
+				filename: file.name,
+				mimeType: file.type || 'application/octet-stream',
+				size: file.size,
+				direction: 'input'
+			});
 			saveImage(id, file);
 		}
 
@@ -189,6 +211,9 @@
 		const userMsg = { role: 'user', content: text };
 		if (imageIds.length > 0) {
 			userMsg.imageIds = imageIds;
+		}
+		if (fileAttachments.length > 0) {
+			userMsg.files = fileAttachments;
 		}
 
 		messages.push(userMsg);
@@ -198,7 +223,6 @@
 		// Resolve image URLs for the newly added user message
 		if (base64Images.length > 0) {
 			const idx = messages.length - 2;
-			// Use the data URLs directly for immediate display
 			messageImageUrls = { ...messageImageUrls, [idx]: base64Images };
 		}
 
@@ -228,6 +252,7 @@
 					model: currentModel,
 					systemPrompt: currentSystemPrompt,
 					images: base64Images.length > 0 ? base64Images : undefined,
+					files: base64Files.length > 0 ? base64Files : undefined,
 					webSearch: webSearch || undefined,
 					imageGeneration: imageGeneration || undefined,
 					codeInterpreter: codeInterpreter || undefined,
@@ -245,7 +270,6 @@
 							messageImageUrls = { ...messageImageUrls, [assistantIdx]: [dataUrl] };
 						} else {
 							const id = generateId();
-							// Convert base64 data URL to Blob
 							const commaIdx = dataUrl.indexOf(',');
 							const mime = dataUrl.slice(5, dataUrl.indexOf(';'));
 							const binary = atob(dataUrl.slice(commaIdx + 1));
@@ -260,6 +284,19 @@
 							persistCurrentConversation();
 						}
 						scrollToBottom();
+					},
+					onOutputFile: (file) => {
+						const assistantMsg = messages[messages.length - 1];
+						if (!assistantMsg.files) assistantMsg.files = [];
+						if (assistantMsg.files.some((f) => f.id === file.file_id)) return;
+						assistantMsg.files.push({
+							id: file.file_id,
+							filename: file.filename,
+							mimeType: file.mime_type,
+							size: 0,
+							direction: 'output'
+						});
+						persistCurrentConversation();
 					}
 				}
 			);
@@ -297,7 +334,7 @@
 		activeConversationId = conv.id;
 		messages = conv.messages.map((m) => ({ ...m }));
 		chatId = conv.chatId;
-		currentModel = conv.model || 'gpt-4.1-mini';
+		currentModel = conv.model || DEFAULT_MODEL;
 		currentSystemPrompt = conv.systemPrompt || '';
 		messageImageUrls = {};
 		await resolveImageUrls(messages);

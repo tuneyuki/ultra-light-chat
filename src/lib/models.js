@@ -7,6 +7,8 @@
  * @property {boolean} supportsCodeInterpreter
  */
 
+export const DEFAULT_MODEL = 'gpt-5-mini';
+
 /** @type {ModelDef[]} */
 export const MODELS = [
 	{ id: 'gpt-5.2', label: 'GPT-5.2', supportsImage: true, supportsImageGen: true, supportsCodeInterpreter: true },

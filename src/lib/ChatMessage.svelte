@@ -18,6 +18,20 @@
 		'response.code_interpreter_call.interpreting': 'コード実行中...',
 		'response.image_generation_call.generating': '画像生成中...',
 	};
+
+	/**
+	 * @param {number} size
+	 * @returns {string}
+	 */
+	function formatFileSize(size) {
+		if (size <= 0) return '';
+		if (size < 1024) return size + ' B';
+		if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+		return (size / (1024 * 1024)).toFixed(1) + ' MB';
+	}
+
+	let inputFiles = $derived(message.files?.filter((f) => f.direction === 'input') ?? []);
+	let outputFiles = $derived(message.files?.filter((f) => f.direction === 'output') ?? []);
 </script>
 
 <div class="message {message.role}">
@@ -31,6 +45,19 @@
 				<div class="message-images">
 					{#each imageUrls as url}
 						<img class="message-image" src={url} alt="Attached" />
+					{/each}
+				</div>
+			{/if}
+			{#if message.role === 'user' && inputFiles.length > 0}
+				<div class="file-attachments">
+					{#each inputFiles as file}
+						<span class="file-pill">
+							<svg class="file-pill-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><polyline points="9 2 9 6 13 6"/></svg>
+							{file.filename}
+							{#if file.size > 0}
+								<span class="file-pill-size">{formatFileSize(file.size)}</span>
+							{/if}
+						</span>
 					{/each}
 				</div>
 			{/if}
@@ -59,6 +86,17 @@
 				<div class="message-images generated-images">
 					{#each imageUrls as url}
 						<img class="message-image generated-image" src={url} alt="Generated" />
+					{/each}
+				</div>
+			{/if}
+			{#if message.role === 'assistant' && outputFiles.length > 0}
+				<div class="file-attachments output-files">
+					{#each outputFiles as file}
+						<a class="file-download-pill" href="/api/files/{file.id}?filename={encodeURIComponent(file.filename)}" target="_blank" rel="noopener">
+							<svg class="file-pill-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><polyline points="9 2 9 6 13 6"/></svg>
+							{file.filename}
+							<svg class="file-download-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v10M8 12l-3-3M8 12l3-3M3 14h10"/></svg>
+						</a>
 					{/each}
 				</div>
 			{/if}
@@ -146,6 +184,63 @@
 	.generated-image {
 		max-width: 512px;
 		max-height: 512px;
+	}
+
+	.file-attachments {
+		display: flex;
+		gap: 8px;
+		flex-wrap: wrap;
+		margin-bottom: 8px;
+	}
+
+	.output-files {
+		margin-top: 8px;
+		margin-bottom: 0;
+	}
+
+	.file-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 10px;
+		border-radius: 8px;
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-primary);
+		font-size: 0.8rem;
+		color: var(--text-secondary);
+	}
+
+	.file-pill-icon {
+		flex-shrink: 0;
+	}
+
+	.file-pill-size {
+		color: var(--text-muted);
+		font-size: 0.7rem;
+	}
+
+	.file-download-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 12px;
+		border-radius: 8px;
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-primary);
+		font-size: 0.8rem;
+		color: var(--text-secondary);
+		text-decoration: none;
+		transition: background 0.15s, border-color 0.15s;
+	}
+
+	.file-download-pill:hover {
+		background: var(--bg-hover);
+		border-color: var(--accent);
+		color: var(--text-primary);
+	}
+
+	.file-download-icon {
+		flex-shrink: 0;
 	}
 
 	/* Typing indicator */

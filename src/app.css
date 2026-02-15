@@ -4,7 +4,7 @@
 	--bg-primary: #ffffff;
 	--bg-secondary: #f5f6f8;
 	--bg-tertiary: #edf0f4;
-	--bg-sidebar: #1b3a6b;
+	--bg-sidebar: #f0f0f0;
 	--bg-input: #f5f6f8;
 	--bg-hover: #e8ecf1;
 	--bg-active: #dce6f5;
@@ -16,12 +16,12 @@
 	--text-secondary: #4a4a5a;
 	--text-muted: #8a8a9a;
 
-	/* Sidebar (light: white text on blue) */
-	--sidebar-text: #ffffff;
-	--sidebar-text-muted: rgba(255, 255, 255, 0.6);
-	--sidebar-hover: rgba(255, 255, 255, 0.1);
-	--sidebar-active: rgba(255, 255, 255, 0.2);
-	--sidebar-border: rgba(255, 255, 255, 0.2);
+	/* Sidebar (light: dark text on light gray) */
+	--sidebar-text: #1a1a2e;
+	--sidebar-text-muted: #6b6b7b;
+	--sidebar-hover: rgba(0, 0, 0, 0.06);
+	--sidebar-active: rgba(0, 0, 0, 0.1);
+	--sidebar-border: #d0d0d0;
 
 	/* Borders */
 	--border-primary: #dde1e8;
