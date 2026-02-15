@@ -3,7 +3,7 @@
 	import { loadConversations, saveConversation, deleteConversation, generateTitle } from '$lib/chatStore.js';
 	import { saveImage, loadImage } from '$lib/imageStore.js';
 	import { loadPrompts, savePrompt, deletePrompt } from '$lib/promptStore.js';
-	import { MODELS, DEFAULT_MODEL } from '$lib/models.js';
+	import { MODELS, DEFAULT_MODEL, getProvider } from '$lib/models.js';
 	import Sidebar from '$lib/Sidebar.svelte';
 	import SettingsModal from '$lib/SettingsModal.svelte';
 	import EmptyState from '$lib/EmptyState.svelte';
@@ -58,12 +58,20 @@
 		MODELS.find((m) => m.id === currentModel)?.supportsCodeInterpreter ?? false
 	);
 
+	let supportsWebSearch = $derived(
+		MODELS.find((m) => m.id === currentModel)?.supportsWebSearch ?? false
+	);
+
 	$effect(() => {
 		if (!supportsImageGen) imageGeneration = false;
 	});
 
 	$effect(() => {
 		if (!supportsCodeInterpreter) codeInterpreter = false;
+	});
+
+	$effect(() => {
+		if (!supportsWebSearch) webSearch = false;
 	});
 
 	/**
@@ -261,6 +269,9 @@
 					webSearch: webSearch || undefined,
 					imageGeneration: imageGeneration || undefined,
 					codeInterpreter: codeInterpreter || undefined,
+					messages: getProvider(currentModel) === 'gemini'
+						? messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }))
+						: undefined,
 					onStatus: (status) => {
 						streamingStatus = status;
 						scrollToBottom();
@@ -329,6 +340,7 @@
 		messages = [];
 		chatId = null;
 		messageImageUrls = {};
+		currentSystemPrompt = '';
 		webSearch = false;
 		imageGeneration = false;
 		codeInterpreter = false;
@@ -407,7 +419,7 @@
 			<div bind:this={messagesEnd}></div>
 		</main>
 
-		<ChatInput {isStreaming} {supportsImage} {supportsImageGen} {supportsCodeInterpreter} bind:webSearch bind:imageGeneration bind:codeInterpreter onSend={handleSend} onStop={handleStop} />
+		<ChatInput {isStreaming} {supportsImage} {supportsImageGen} {supportsCodeInterpreter} {supportsWebSearch} bind:webSearch bind:imageGeneration bind:codeInterpreter onSend={handleSend} onStop={handleStop} />
 	</div>
 </div>
 

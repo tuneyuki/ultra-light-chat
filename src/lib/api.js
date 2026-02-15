@@ -7,7 +7,7 @@ const API_URL = '/api/chat';
  * @param {(delta: string) => void} onDelta - Called for each text chunk
  * @param {(id: string | null) => void} onChatId - Called when a chat ID is returned
  * @param {AbortSignal} [signal] - Optional abort signal
- * @param {{ model?: string, systemPrompt?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string, container_id: string}) => void }} [options] - Optional parameters
+ * @param {{ model?: string, systemPrompt?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, messages?: Array<{role: string, content: string}>, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string, container_id: string}) => void }} [options] - Optional parameters
  * @returns {Promise<void>}
  */
 export async function streamChat(input, chatId, onDelta, onChatId, signal, options) {
@@ -43,6 +43,7 @@ export async function streamChat(input, chatId, onDelta, onChatId, signal, optio
 	if (options?.webSearch) body.web_search = true;
 	if (options?.imageGeneration) body.image_generation = true;
 	if (options?.codeInterpreter) body.code_interpreter = true;
+	if (options?.messages) body.messages = options.messages;
 
 	const res = await fetch(API_URL, {
 		method: 'POST',

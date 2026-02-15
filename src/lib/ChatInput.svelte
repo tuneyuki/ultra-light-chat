@@ -1,6 +1,6 @@
 <script>
-	/** @type {{ isStreaming: boolean, supportsImage: boolean, supportsImageGen: boolean, supportsCodeInterpreter: boolean, webSearch: boolean, imageGeneration: boolean, codeInterpreter: boolean, onSend: (text: string, images: File[], files: File[]) => void, onStop: () => void }} */
-	let { isStreaming, supportsImage, supportsImageGen, supportsCodeInterpreter, webSearch = $bindable(), imageGeneration = $bindable(), codeInterpreter = $bindable(), onSend, onStop } = $props();
+	/** @type {{ isStreaming: boolean, supportsImage: boolean, supportsImageGen: boolean, supportsCodeInterpreter: boolean, supportsWebSearch: boolean, webSearch: boolean, imageGeneration: boolean, codeInterpreter: boolean, onSend: (text: string, images: File[], files: File[]) => void, onStop: () => void }} */
+	let { isStreaming, supportsImage, supportsImageGen, supportsCodeInterpreter, supportsWebSearch, webSearch = $bindable(), imageGeneration = $bindable(), codeInterpreter = $bindable(), onSend, onStop } = $props();
 
 	let inputText = $state('');
 	/** @type {File[]} */
@@ -199,14 +199,16 @@
 	</div>
 	<div class="toolbar">
 		<div class="toolbar-toggles">
-			<label class="toggle-label">
-				<span class="toggle-track" class:active={webSearch}>
-					<span class="toggle-thumb"></span>
-				</span>
-				<input type="checkbox" bind:checked={webSearch} hidden />
-				<svg class="toggle-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5"/><path d="M15 15l-3.5-3.5"/></svg>
-				<span>Search</span>
-			</label>
+			{#if supportsWebSearch}
+				<label class="toggle-label">
+					<span class="toggle-track" class:active={webSearch}>
+						<span class="toggle-thumb"></span>
+					</span>
+					<input type="checkbox" bind:checked={webSearch} hidden />
+					<svg class="toggle-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5"/><path d="M15 15l-3.5-3.5"/></svg>
+					<span>Search</span>
+				</label>
+			{/if}
 			{#if supportsImageGen}
 				<label class="toggle-label">
 					<span class="toggle-track" class:active={imageGeneration}>

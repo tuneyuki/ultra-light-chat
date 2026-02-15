@@ -2,8 +2,44 @@ import { env } from '$env/dynamic/private';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/responses';
 
+/**
+ * Determine provider from model ID.
+ * @param {string} modelId
+ * @returns {'openai' | 'gemini'}
+ */
+function getProvider(modelId) {
+	if (modelId.startsWith('gemini-')) return 'gemini';
+	return 'openai';
+}
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
+	const { input, chat_id, model, system_prompt, web_search, image_generation, code_interpreter, messages } = await request.json();
+	const userId = request.headers.get('x-ms-client-principal-name') || null;
+
+	// model is always sent from the client; fallback is for direct API calls
+	const resolvedModel = model || env.OPENAI_MODEL || 'gpt-5-mini';
+	const provider = getProvider(resolvedModel);
+
+	if (provider === 'gemini') {
+		return handleGemini(resolvedModel, input, messages, system_prompt, web_search, userId);
+	}
+
+	return handleOpenAI(resolvedModel, input, chat_id, system_prompt, web_search, image_generation, code_interpreter, userId);
+}
+
+/**
+ * @param {string} model
+ * @param {unknown} input
+ * @param {string | undefined} chatId
+ * @param {string | undefined} systemPrompt
+ * @param {boolean | undefined} webSearch
+ * @param {boolean | undefined} imageGeneration
+ * @param {boolean | undefined} codeInterpreter
+ * @param {string | null} userId
+ * @returns {Promise<Response>}
+ */
+async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, imageGeneration, codeInterpreter, userId) {
 	const apiKey = env.OPENAI_API_KEY;
 	if (!apiKey) {
 		return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), {
@@ -12,29 +48,59 @@ export async function POST({ request }) {
 		});
 	}
 
-	const { input, chat_id, model, system_prompt, web_search, image_generation, code_interpreter } = await request.json();
-
 	/** @type {Record<string, unknown>} */
 	const body = {
-		model: model || env.OPENAI_MODEL || 'gpt-4.1-mini',
+		model,
 		input,
 		stream: true
 	};
 
-	if (system_prompt) {
-		body.instructions = system_prompt;
+	if (systemPrompt) {
+		body.instructions = systemPrompt;
 	}
 
-	if (chat_id) {
-		body.previous_response_id = chat_id;
+	if (chatId) {
+		body.previous_response_id = chatId;
 	}
 
 	/** @type {Array<Record<string, unknown>>} */
 	const tools = [];
-	if (web_search) tools.push({ type: 'web_search_preview' });
-	if (image_generation) tools.push({ type: 'image_generation' });
-	if (code_interpreter) tools.push({ type: 'code_interpreter', container: { type: 'auto' } });
+	if (webSearch) tools.push({ type: 'web_search_preview' });
+	if (imageGeneration) tools.push({ type: 'image_generation' });
+	if (codeInterpreter) tools.push({ type: 'code_interpreter', container: { type: 'auto' } });
 	if (tools.length > 0) body.tools = tools;
+
+	/** @type {string} */
+	let logInput = '';
+	/** @type {number} */
+	let imageCount = 0;
+	/** @type {string[]} */
+	const attachedFiles = [];
+
+	if (typeof input === 'string') {
+		logInput = input;
+	} else if (Array.isArray(input)) {
+		for (const item of input) {
+			if (!item.content || !Array.isArray(item.content)) continue;
+			for (const c of item.content) {
+				if (c.type === 'input_text' && c.text) logInput = c.text;
+				if (c.type === 'input_image') imageCount++;
+				if (c.type === 'input_file') attachedFiles.push(c.filename || 'unknown');
+			}
+		}
+	}
+
+	console.log(JSON.stringify({
+		provider: 'openai',
+		model,
+		input: logInput,
+		images: imageCount,
+		files: attachedFiles,
+		system_prompt: systemPrompt || null,
+		tools: { web_search: !!webSearch, image_generation: !!imageGeneration, code_interpreter: !!codeInterpreter },
+		has_previous_response: !!chatId,
+		user: userId
+	}));
 
 	const upstream = await fetch(OPENAI_API_URL, {
 		method: 'POST',
@@ -173,6 +239,178 @@ export async function POST({ request }) {
 					} catch {
 						// skip malformed JSON
 					}
+				}
+			}
+
+			controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+			controller.close();
+		}
+	});
+
+	return new Response(stream, {
+		headers: {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache, no-transform',
+			Connection: 'keep-alive',
+			'X-Accel-Buffering': 'no'
+		}
+	});
+}
+
+/**
+ * @param {string} model
+ * @param {unknown} input
+ * @param {Array<{role: string, content: string}> | undefined} messages
+ * @param {string | undefined} systemPrompt
+ * @param {boolean | undefined} webSearch
+ * @param {string | null} userId
+ * @returns {Promise<Response>}
+ */
+async function handleGemini(model, input, messages, systemPrompt, webSearch, userId) {
+	const apiKey = env.GOOGLE_API_KEY;
+	if (!apiKey) {
+		return new Response(JSON.stringify({ error: 'GOOGLE_API_KEY is not configured' }), {
+			status: 500,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
+
+	// Build contents array from message history
+	/** @type {Array<{role: string, parts: Array<{text: string}>}>} */
+	const contents = [];
+
+	if (messages && messages.length > 0) {
+		for (const msg of messages) {
+			contents.push({
+				role: msg.role === 'assistant' ? 'model' : 'user',
+				parts: [{ text: msg.content }]
+			});
+		}
+	} else {
+		// No history, just send the current input
+		const inputText = typeof input === 'string' ? input : '';
+		contents.push({ role: 'user', parts: [{ text: inputText }] });
+	}
+
+	/** @type {Record<string, unknown>} */
+	const body = {
+		contents,
+		generationConfig: { temperature: 1.0 }
+	};
+
+	if (systemPrompt) {
+		body.systemInstruction = { parts: [{ text: systemPrompt }] };
+	}
+
+	if (webSearch) {
+		body.tools = [{ google_search: {} }];
+	}
+
+	const lastUserMessage = contents.filter((c) => c.role === 'user').pop();
+	console.log(JSON.stringify({
+		provider: 'gemini',
+		model,
+		input: lastUserMessage?.parts?.[0]?.text || '[empty]',
+		system_prompt: systemPrompt || null,
+		tools: { web_search: !!webSearch, image_generation: false, code_interpreter: false },
+		message_count: contents.length,
+		user: userId
+	}));
+
+	const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+	const upstream = await fetch(geminiUrl, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(body)
+	});
+
+	if (!upstream.ok) {
+		const text = await upstream.text();
+		return new Response(text, {
+			status: upstream.status,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
+
+	const stream = new ReadableStream({
+		async start(controller) {
+			const reader = upstream.body?.getReader();
+			if (!reader) {
+				controller.close();
+				return;
+			}
+
+			const encoder = new TextEncoder();
+			const decoder = new TextDecoder();
+			let buffer = '';
+			/** @type {any} */
+			let lastGroundingMetadata = null;
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() ?? '';
+
+				for (const line of lines) {
+					if (!line.startsWith('data: ')) continue;
+					const jsonStr = line.slice(6).trim();
+					if (!jsonStr || jsonStr === '[DONE]') continue;
+
+					try {
+						const data = JSON.parse(jsonStr);
+						const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+						if (text) {
+							const event = `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: text })}\n\n`;
+							controller.enqueue(encoder.encode(event));
+						}
+						const metadata = data.candidates?.[0]?.groundingMetadata;
+						if (metadata) {
+							lastGroundingMetadata = metadata;
+						}
+					} catch {
+						// skip malformed JSON
+					}
+				}
+			}
+
+			// Append grounding sources as markdown after the response
+			if (lastGroundingMetadata?.groundingChunks?.length > 0) {
+				const chunks = lastGroundingMetadata.groundingChunks;
+				const supports = lastGroundingMetadata.groundingSupports || [];
+
+				// Build per-chunk supporting text segments
+				/** @type {Map<number, string[]>} */
+				const chunkSegments = new Map();
+				for (const support of supports) {
+					const segText = support.segment?.text;
+					if (!segText) continue;
+					for (const idx of (support.groundingChunkIndices || [])) {
+						if (!chunkSegments.has(idx)) chunkSegments.set(idx, []);
+						chunkSegments.get(idx)?.push(segText);
+					}
+				}
+
+				/** @type {string[]} */
+				const lines = [];
+				for (let i = 0; i < chunks.length; i++) {
+					const chunk = chunks[i];
+					if (!chunk.web?.uri || !chunk.web?.title) continue;
+					const segments = chunkSegments.get(i);
+					if (segments && segments.length > 0) {
+						const quote = segments.map((/** @type {string} */ s) => `> ${s}`).join('\n');
+						lines.push(`- [${chunk.web.title}](${chunk.web.uri})\n${quote}`);
+					} else {
+						lines.push(`- [${chunk.web.title}](${chunk.web.uri})`);
+					}
+				}
+				if (lines.length > 0) {
+					const sourcesText = `\n\n---\n**Sources**\n${lines.join('\n')}\n`;
+					const event = `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: sourcesText })}\n\n`;
+					controller.enqueue(encoder.encode(event));
 				}
 			}
 
