@@ -101,6 +101,7 @@
 		flex-shrink: 0;
 		overflow-y: auto;
 		box-shadow: var(--sidebar-shadow);
+		border-right: 1px solid var(--sidebar-border);
 		z-index: 1;
 	}
 

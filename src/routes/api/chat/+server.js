@@ -22,7 +22,7 @@ export async function POST({ request }) {
 	const provider = getProvider(resolvedModel);
 
 	if (provider === 'gemini') {
-		return handleGemini(resolvedModel, input, messages, system_prompt, web_search, reasoning_effort, userId);
+		return handleGemini(resolvedModel, input, messages, system_prompt, web_search, code_interpreter, reasoning_effort, userId);
 	}
 
 	return handleOpenAI(resolvedModel, input, chat_id, system_prompt, web_search, image_generation, code_interpreter, reasoning_effort, userId);
@@ -264,16 +264,66 @@ async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, image
 }
 
 /**
+ * Guess MIME type from filename extension.
+ * @param {string} filename
+ * @returns {string}
+ */
+function guessMimeType(filename) {
+	const ext = filename.split('.').pop()?.toLowerCase() || '';
+	const types = /** @type {Record<string, string>} */ ({
+		csv: 'text/csv', txt: 'text/plain', json: 'application/json',
+		html: 'text/html', xml: 'application/xml', md: 'text/markdown',
+		png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+		gif: 'image/gif', svg: 'image/svg+xml', pdf: 'application/pdf',
+	});
+	return types[ext] || 'application/octet-stream';
+}
+
+/**
+ * Try to reconstruct file content from code execution context.
+ * Searches executed code for file write patterns and uses code output as file content.
+ * @param {string} filename
+ * @param {string[]} executedCodes
+ * @param {string[]} codeOutputs
+ * @returns {string | null}
+ */
+function reconstructFileContent(filename, executedCodes, codeOutputs) {
+	// Check if any executed code explicitly prints/outputs the file content
+	// Look for patterns like: open('filename').read(), print(open(...)), cat filename
+	const escapedName = filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	for (let i = executedCodes.length - 1; i >= 0; i--) {
+		const code = executedCodes[i];
+		if (code.includes(filename) || code.includes(escapedName)) {
+			// This code block references our file - use its output
+			if (codeOutputs[i]) {
+				return codeOutputs[i];
+			}
+		}
+	}
+	// Fallback: use the last code output if any code wrote this file
+	for (let i = executedCodes.length - 1; i >= 0; i--) {
+		if (executedCodes[i].includes(filename)) {
+			// Find the nearest output after this code
+			for (let j = i; j < codeOutputs.length; j++) {
+				if (codeOutputs[j]) return codeOutputs[j];
+			}
+		}
+	}
+	return null;
+}
+
+/**
  * @param {string} model
  * @param {unknown} input
  * @param {Array<{role: string, content: string}> | undefined} messages
  * @param {string | undefined} systemPrompt
  * @param {boolean | undefined} webSearch
+ * @param {boolean | undefined} codeInterpreter
  * @param {string | undefined} reasoningEffort
  * @param {string | null} userId
  * @returns {Promise<Response>}
  */
-async function handleGemini(model, input, messages, systemPrompt, webSearch, reasoningEffort, userId) {
+async function handleGemini(model, input, messages, systemPrompt, webSearch, codeInterpreter, reasoningEffort, userId) {
 	const apiKey = env.GOOGLE_API_KEY;
 	if (!apiKey) {
 		return new Response(JSON.stringify({ error: 'GOOGLE_API_KEY is not configured' }), {
@@ -329,12 +379,14 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, rea
 	};
 
 	if (systemPrompt) {
-		body.systemInstruction = { parts: [{ text: systemPrompt }] };
+		body.system_instruction = { parts: [{ text: systemPrompt }] };
 	}
 
-	if (webSearch) {
-		body.tools = [{ google_search: {} }];
-	}
+	/** @type {Array<Record<string, unknown>>} */
+	const geminiTools = [];
+	if (webSearch) geminiTools.push({ google_search: {} });
+	if (codeInterpreter) geminiTools.push({ code_execution: {} });
+	if (geminiTools.length > 0) body.tools = geminiTools;
 
 	if (reasoningEffort) {
 		body.generationConfig = { .../** @type {Record<string, unknown>} */ (body.generationConfig), thinkingConfig: { thinkingLevel: reasoningEffort } };
@@ -350,7 +402,7 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, rea
 		images: imageCount,
 		files: [],
 		system_prompt: systemPrompt || null,
-		tools: { web_search: !!webSearch, image_generation: false, code_interpreter: false },
+		tools: { web_search: !!webSearch, image_generation: false, code_interpreter: !!codeInterpreter },
 		reasoning_effort: reasoningEffort || null,
 		has_previous_response: false,
 		message_count: contents.length,
@@ -386,6 +438,13 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, rea
 			let buffer = '';
 			/** @type {any} */
 			let lastGroundingMetadata = null;
+			/** @type {Array<{filename: string, mime_type: string, data: string}>} */
+			const collectedFiles = [];
+			/** @type {string[]} */
+			const codeOutputs = [];
+			/** @type {string[]} */
+			const executedCodes = [];
+			let fileCounter = 0;
 
 			while (true) {
 				const { done, value } = await reader.read();
@@ -402,10 +461,49 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, rea
 
 					try {
 						const data = JSON.parse(jsonStr);
-						const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-						if (text) {
-							const event = `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: text })}\n\n`;
-							controller.enqueue(encoder.encode(event));
+						const parts = data.candidates?.[0]?.content?.parts;
+						if (parts && Array.isArray(parts)) {
+							for (const part of parts) {
+								if (part.executableCode?.code) {
+									executedCodes.push(part.executableCode.code);
+									const codeEvent = `data: ${JSON.stringify({ type: 'code_delta', delta: part.executableCode.code })}\n\n`;
+									controller.enqueue(encoder.encode(codeEvent));
+								} else if (part.codeExecutionResult) {
+									const output = part.codeExecutionResult.output || '';
+									if (output) {
+										codeOutputs.push(output);
+										const resultEvent = `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: '\n```\n' + output + '\n```\n' })}\n\n`;
+										controller.enqueue(encoder.encode(resultEvent));
+									}
+								} else if (part.inlineData) {
+									const mime = part.inlineData.mimeType || 'application/octet-stream';
+									const b64 = part.inlineData.data;
+									const ext = mime.split('/')[1]?.split(';')[0] || 'bin';
+									const filename = `output_${++fileCounter}.${ext}`;
+									collectedFiles.push({ filename, mime_type: mime, data: b64 });
+								} else if (part.text) {
+									// Keep sandbox: links as-is; track filenames for later file reconstruction
+									const text = part.text.replace(/\(sandbox:\/[^)]+\/([^/)]+)\)/g, (_, name) => {
+										// Check if already collected via inlineData
+										const ext = name.includes('.') ? name.split('.').pop() : '';
+										const match = ext ? collectedFiles.find((f) => f.filename.endsWith('.' + ext)) : collectedFiles[0];
+										if (match) {
+											match.filename = name;
+										} else {
+											// Reconstruct file from code execution output
+											const fileContent = reconstructFileContent(name, executedCodes, codeOutputs);
+											if (fileContent) {
+												const b64 = Buffer.from(fileContent).toString('base64');
+												const mime = guessMimeType(name);
+												collectedFiles.push({ filename: name, mime_type: mime, data: b64 });
+											}
+										}
+										return `(sandbox:/mnt/data/${name})`;
+									});
+									const event = `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: text })}\n\n`;
+									controller.enqueue(encoder.encode(event));
+								}
+							}
 						}
 						const metadata = data.candidates?.[0]?.groundingMetadata;
 						if (metadata) {
@@ -415,6 +513,12 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, rea
 						// skip malformed JSON
 					}
 				}
+			}
+
+			// Emit collected Gemini files
+			for (const file of collectedFiles) {
+				const fileEvent = `data: ${JSON.stringify({ type: 'gemini_file', filename: file.filename, mime_type: file.mime_type, data: file.data })}\n\n`;
+				controller.enqueue(encoder.encode(fileEvent));
 			}
 
 			// Append grounding sources as markdown after the response

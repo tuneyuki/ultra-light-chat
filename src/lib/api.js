@@ -7,7 +7,7 @@ const API_URL = '/api/chat';
  * @param {(delta: string) => void} onDelta - Called for each text chunk
  * @param {(id: string | null) => void} onChatId - Called when a chat ID is returned
  * @param {AbortSignal} [signal] - Optional abort signal
- * @param {{ model?: string, systemPrompt?: string, reasoningEffort?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, messages?: Array<{role: string, content: string}>, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string, container_id: string}) => void }} [options] - Optional parameters
+ * @param {{ model?: string, systemPrompt?: string, reasoningEffort?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, messages?: Array<{role: string, content: string}>, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string, container_id: string}) => void, onGeminiFile?: (file: {filename: string, mime_type: string, blob_url: string}) => void }} [options] - Optional parameters
  * @returns {Promise<void>}
  */
 export async function streamChat(input, chatId, onDelta, onChatId, signal, options) {
@@ -103,6 +103,19 @@ export async function streamChat(input, chatId, onDelta, onChatId, signal, optio
 				if (data.type === 'code_delta' && data.delta && options?.onCodeDelta) {
 					options.onCodeDelta(data.delta);
 					await new Promise((r) => setTimeout(r, 0));
+				}
+
+				if (data.type === 'gemini_file' && data.data && options?.onGeminiFile) {
+					const binary = atob(data.data);
+					const bytes = new Uint8Array(binary.length);
+					for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+					const blob = new Blob([bytes], { type: data.mime_type || 'application/octet-stream' });
+					const blobUrl = URL.createObjectURL(blob);
+					options.onGeminiFile({
+						filename: data.filename || 'download',
+						mime_type: data.mime_type || 'application/octet-stream',
+						blob_url: blobUrl
+					});
 				}
 
 				if (data.type === 'output_file' && data.file_id && options?.onOutputFile) {

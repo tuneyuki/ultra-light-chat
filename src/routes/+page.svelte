@@ -326,6 +326,21 @@
 							containerId: file.container_id || undefined
 						});
 						persistCurrentConversation();
+					},
+					onGeminiFile: (file) => {
+						const assistantMsg = messages[messages.length - 1];
+						if (!assistantMsg.files) assistantMsg.files = [];
+						if (assistantMsg.files.some((f) => f.filename === file.filename)) return;
+						const id = 'gemini-blob-' + generateId();
+						assistantMsg.files.push({
+							id,
+							filename: file.filename,
+							mimeType: file.mime_type,
+							size: 0,
+							direction: 'output',
+							blobUrl: file.blob_url
+						});
+						persistCurrentConversation();
 					}
 				}
 			);
@@ -356,7 +371,7 @@
 		webSearch = false;
 		imageGeneration = false;
 		codeInterpreter = false;
-		reasoningEffort = 'none';
+		reasoningEffort = supportsReasoning?.[0] ?? 'none';
 	}
 
 	/**

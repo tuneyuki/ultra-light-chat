@@ -44,9 +44,12 @@
 				const filename = sandboxPath.split('/').pop() || 'download';
 				const file = files.find((f) => f.filename === filename);
 				if (file) {
-					const href = `/api/files/${file.id}?filename=${encodeURIComponent(file.filename)}${file.containerId ? '&container_id=' + encodeURIComponent(file.containerId) : ''}`;
+					const href = file.blobUrl
+						? file.blobUrl
+						: `/api/files/${file.id}?filename=${encodeURIComponent(file.filename)}${file.containerId ? '&container_id=' + encodeURIComponent(file.containerId) : ''}`;
 					const text = renderer.parser?.parseInline(token.tokens) ?? filename;
-					return `<a href="${href}" target="_blank" rel="noopener">${text}</a>`;
+					const dl = file.blobUrl ? ` download="${filename.replace(/"/g, '&quot;')}"` : '';
+					return `<a href="${href}" target="_blank" rel="noopener"${dl}>${text}</a>`;
 				}
 			}
 			return defaultLinkRenderer(token);
@@ -114,7 +117,7 @@
 			{#if message.role === 'assistant' && outputFiles.length > 0}
 				<div class="file-attachments output-files">
 					{#each outputFiles as file}
-						<a class="file-download-pill" href="/api/files/{file.id}?filename={encodeURIComponent(file.filename)}{file.containerId ? '&container_id=' + encodeURIComponent(file.containerId) : ''}" target="_blank" rel="noopener">
+						<a class="file-download-pill" href={file.blobUrl || `/api/files/${file.id}?filename=${encodeURIComponent(file.filename)}${file.containerId ? '&container_id=' + encodeURIComponent(file.containerId) : ''}`} download={file.blobUrl ? file.filename : undefined} target="_blank" rel="noopener">
 							<svg class="file-pill-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><polyline points="9 2 9 6 13 6"/></svg>
 							{file.filename}
 							<svg class="file-download-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v10M8 12l-3-3M8 12l3-3M3 14h10"/></svg>

@@ -10,6 +10,7 @@
  * @property {number} size
  * @property {'input' | 'output'} direction
  * @property {string} [containerId]
+ * @property {string} [blobUrl]
  */
 
 /**
