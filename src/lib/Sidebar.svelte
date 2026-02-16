@@ -1,9 +1,21 @@
 <script>
+	import { onMount } from 'svelte';
+
 	/** @type {import('./types.js').Conversation[]} */
 	let { conversations = [], activeId = '', onSelect, onNew, onDelete, onDeleteAll, onOpenSettings } = $props();
 
 	let open = $state(false);
+	let collapsed = $state(false);
 	let showDeleteAllConfirm = $state(false);
+
+	onMount(() => {
+		collapsed = localStorage.getItem('ulc-sidebar-collapsed') === 'true';
+	});
+
+	function toggleCollapse() {
+		collapsed = !collapsed;
+		localStorage.setItem('ulc-sidebar-collapsed', String(collapsed));
+	}
 
 	/** @type {import('./types.js').Conversation[]} */
 	let sorted = $derived(
@@ -41,19 +53,39 @@
 	</svg>
 </button>
 
+<!-- Desktop expand button (shown when collapsed) -->
+{#if collapsed}
+	<button class="expand-btn" onclick={toggleCollapse} aria-label="Expand sidebar" title="サイドバーを展開">
+		<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+			<rect x="1" y="2" width="16" height="14" rx="2"/>
+			<line x1="6" y1="2" x2="6" y2="16"/>
+			<polyline points="9,7 12,9 9,11"/>
+		</svg>
+	</button>
+{/if}
+
 <!-- Overlay for mobile -->
 {#if open}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="overlay" onclick={() => open = false} onkeydown={() => {}}></div>
 {/if}
 
-<aside class="sidebar" class:open>
-	<button class="new-chat-btn" onclick={onNew}>
+<aside class="sidebar" class:open class:collapsed>
+	<div class="sidebar-top-row">
+		<button class="new-chat-btn" onclick={onNew}>
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
 			<line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
 		</svg>
 		New Chat
-	</button>
+		</button>
+		<button class="collapse-btn" onclick={toggleCollapse} aria-label="Collapse sidebar" title="サイドバーを折りたたむ">
+			<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+				<rect x="1" y="2" width="16" height="14" rx="2"/>
+				<line x1="6" y1="2" x2="6" y2="16"/>
+				<polyline points="12,7 9,9 12,11"/>
+			</svg>
+		</button>
+	</div>
 
 	<hr class="sidebar-divider" />
 
@@ -130,13 +162,29 @@
 		box-shadow: var(--sidebar-shadow);
 		border-right: 1px solid var(--sidebar-border);
 		z-index: 1;
+		transition: width 0.2s ease, padding 0.2s ease, opacity 0.2s ease;
+	}
+
+	.sidebar.collapsed {
+		width: 0;
+		padding: 0;
+		overflow: hidden;
+		border-right: none;
+	}
+
+	.sidebar-top-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-shrink: 0;
 	}
 
 	.new-chat-btn {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		width: 100%;
+		flex: 1;
+		min-width: 0;
 		padding: 10px 12px;
 		border: 1px solid var(--sidebar-border);
 		border-radius: 8px;
@@ -149,6 +197,49 @@
 
 	.new-chat-btn:hover {
 		background: var(--sidebar-hover);
+	}
+
+	.collapse-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		border: 1px solid var(--sidebar-border);
+		border-radius: 8px;
+		background: transparent;
+		color: var(--sidebar-text-muted);
+		cursor: pointer;
+		flex-shrink: 0;
+		transition: background 0.15s, color 0.15s;
+	}
+
+	.collapse-btn:hover {
+		background: var(--sidebar-hover);
+		color: var(--sidebar-text);
+	}
+
+	.expand-btn {
+		display: none;
+		position: fixed;
+		top: 12px;
+		left: 12px;
+		z-index: 2;
+		width: 36px;
+		height: 36px;
+		border: 1px solid var(--border-primary);
+		border-radius: 8px;
+		background: var(--bg-secondary);
+		color: var(--text-muted);
+		cursor: pointer;
+		align-items: center;
+		justify-content: center;
+		transition: background 0.15s, color 0.15s;
+	}
+
+	.expand-btn:hover {
+		background: var(--bg-hover);
+		color: var(--text-primary);
 	}
 
 	.conversation-list {
@@ -356,6 +447,13 @@
 		display: none;
 	}
 
+	/* Desktop: show expand button and collapse button */
+	@media (min-width: 769px) {
+		.expand-btn {
+			display: flex;
+		}
+	}
+
 	/* Mobile responsive */
 	@media (max-width: 768px) {
 		.hamburger {
@@ -369,10 +467,22 @@
 			z-index: 50;
 			transform: translateX(-100%);
 			transition: transform 0.2s ease;
+			width: 260px !important;
+			padding: 12px !important;
+			overflow-y: auto !important;
+			border-right: 1px solid var(--sidebar-border) !important;
 		}
 
 		.sidebar.open {
 			transform: translateX(0);
+		}
+
+		.collapse-btn {
+			display: none;
+		}
+
+		.expand-btn {
+			display: none !important;
 		}
 
 		.overlay {
