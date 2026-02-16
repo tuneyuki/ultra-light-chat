@@ -1,8 +1,9 @@
 <script>
 	/** @type {import('./types.js').Conversation[]} */
-	let { conversations = [], activeId = '', onSelect, onNew, onDelete, onOpenSettings } = $props();
+	let { conversations = [], activeId = '', onSelect, onNew, onDelete, onDeleteAll, onOpenSettings } = $props();
 
 	let open = $state(false);
+	let showDeleteAllConfirm = $state(false);
 
 	/** @type {import('./types.js').Conversation[]} */
 	let sorted = $derived(
@@ -54,6 +55,8 @@
 		New Chat
 	</button>
 
+	<hr class="sidebar-divider" />
+
 	<nav class="conversation-list">
 		{#each sorted as conv (conv.id)}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -79,6 +82,15 @@
 		{/each}
 	</nav>
 
+	<hr class="sidebar-divider" />
+
+	{#if conversations.length > 0}
+		<button class="delete-all-btn" onclick={() => showDeleteAllConfirm = true}>
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.3 4V2.7a1.3 1.3 0 011.4-1.4h2.6a1.3 1.3 0 011.4 1.4V4M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4"/></svg>
+			履歴を全削除
+		</button>
+	{/if}
+
 	<button class="settings-btn" onclick={onOpenSettings}>
 		<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
 			<circle cx="9" cy="9" r="2.5"/>
@@ -87,6 +99,21 @@
 		Settings
 	</button>
 </aside>
+
+{#if showDeleteAllConfirm}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="confirm-overlay" onclick={() => showDeleteAllConfirm = false} onkeydown={() => {}}>
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="confirm-modal" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
+			<p class="confirm-title">履歴を全削除しますか？</p>
+			<p class="confirm-desc">すべてのチャット履歴が削除されます。この操作は元に戻せません。</p>
+			<div class="confirm-actions">
+				<button class="confirm-btn confirm-cancel" onclick={() => showDeleteAllConfirm = false}>キャンセル</button>
+				<button class="confirm-btn confirm-delete" onclick={() => { showDeleteAllConfirm = false; onDeleteAll(); }}>全削除</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.sidebar {
@@ -208,6 +235,99 @@
 	.settings-btn:hover {
 		background: var(--sidebar-hover);
 		color: var(--sidebar-text);
+	}
+
+	.sidebar-divider {
+		border: none;
+		border-top: 1px solid var(--sidebar-border);
+		margin: 4px 0;
+	}
+
+	.delete-all-btn {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		width: 100%;
+		padding: 10px 12px;
+		border: none;
+		border-radius: 8px;
+		background: transparent;
+		color: var(--sidebar-text-muted);
+		font-size: 0.875rem;
+		cursor: pointer;
+		transition: background 0.15s, color 0.15s;
+		flex-shrink: 0;
+	}
+
+	.delete-all-btn:hover {
+		background: var(--sidebar-hover);
+		color: #e55;
+	}
+
+	.confirm-overlay {
+		position: fixed;
+		inset: 0;
+		background: var(--overlay-bg);
+		z-index: 200;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.confirm-modal {
+		background: var(--bg-primary);
+		border: 1px solid var(--border-primary);
+		border-radius: 12px;
+		padding: 24px;
+		max-width: 360px;
+		width: 90%;
+	}
+
+	.confirm-title {
+		font-size: 1rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		margin: 0 0 8px;
+	}
+
+	.confirm-desc {
+		font-size: 0.85rem;
+		color: var(--text-muted);
+		margin: 0 0 20px;
+		line-height: 1.5;
+	}
+
+	.confirm-actions {
+		display: flex;
+		gap: 8px;
+		justify-content: flex-end;
+	}
+
+	.confirm-btn {
+		padding: 8px 16px;
+		border-radius: 8px;
+		border: none;
+		font-size: 0.85rem;
+		cursor: pointer;
+		transition: background 0.15s;
+	}
+
+	.confirm-cancel {
+		background: var(--bg-secondary);
+		color: var(--text-primary);
+	}
+
+	.confirm-cancel:hover {
+		background: var(--bg-hover);
+	}
+
+	.confirm-delete {
+		background: #e55;
+		color: white;
+	}
+
+	.confirm-delete:hover {
+		background: #d33;
 	}
 
 	/* Hamburger button (mobile only) */

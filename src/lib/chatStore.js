@@ -70,6 +70,17 @@ export function deleteConversation(id) {
 }
 
 /**
+ * Delete all conversations from LocalStorage.
+ */
+export function deleteAllConversations() {
+	try {
+		localStorage.removeItem(STORAGE_KEY);
+	} catch {
+		// ignore
+	}
+}
+
+/**
  * Generate a title from the first user message (first 30 chars).
  * @param {import('./types.js').Message[]} messages
  * @returns {string}

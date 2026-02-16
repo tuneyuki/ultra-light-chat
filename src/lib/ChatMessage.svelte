@@ -24,6 +24,17 @@
 
 	let inputFiles = $derived(message.files?.filter((f) => f.direction === 'input') ?? []);
 	let outputFiles = $derived(message.files?.filter((f) => f.direction === 'output') ?? []);
+	let copyLabel = $state('Copy');
+
+	async function copyContent() {
+		try {
+			await navigator.clipboard.writeText(message.content);
+			copyLabel = 'Copied!';
+			setTimeout(() => { copyLabel = 'Copy'; }, 2000);
+		} catch {
+			// ignore
+		}
+	}
 
 	/**
 	 * @param {string} content
@@ -124,6 +135,12 @@
 						</a>
 					{/each}
 				</div>
+			{/if}
+			{#if message.role === 'assistant' && message.content}
+				<button class="msg-copy-btn" onclick={copyContent} title="回答をコピー">
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M5 11H3.5A1.5 1.5 0 012 9.5v-7A1.5 1.5 0 013.5 1h7A1.5 1.5 0 0112 2.5V5"/></svg>
+					<span>{copyLabel}</span>
+				</button>
 			{/if}
 		</div>
 	</div>
@@ -266,6 +283,27 @@
 
 	.file-download-icon {
 		flex-shrink: 0;
+	}
+
+	.msg-copy-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		margin-top: 8px;
+		padding: 4px 10px;
+		border: 1px solid var(--border-primary);
+		border-radius: 6px;
+		background: transparent;
+		color: var(--text-muted);
+		font-size: 0.75rem;
+		cursor: pointer;
+		transition: background 0.15s, color 0.15s, border-color 0.15s;
+	}
+
+	.msg-copy-btn:hover {
+		background: var(--bg-hover);
+		color: var(--text-primary);
+		border-color: var(--border-secondary);
 	}
 
 	/* Typing indicator */
