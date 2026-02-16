@@ -1,6 +1,6 @@
 # Ultra Light Chat
 
-Ultra Light Chatは、OpenAI APIの高度な機能を活用するために設計された、ミニマリストかつ高性能なチャットインターフェースです。**SvelteKit 2** と **Svelte 5 (Runes)** で構築されており、ブラウザ上でネイティブアプリのようなプレミアムな体験を提供します。
+Ultra Light Chatは、OpenAI・Google Gemini APIの高度な機能を活用するために設計された、ミニマリストかつ高性能なチャットインターフェースです。**SvelteKit 2** と **Svelte 5 (Runes)** で構築されており、ブラウザ上でネイティブアプリのようなプレミアムな体験を提供します。
 
 ## コンセプト
 
@@ -8,11 +8,12 @@ Ultra Light Chatの目標は、軽量でありながら、ネイティブアプ�
 
 ## 主な機能
 
-- **高度なモデルサポート**: GPT-5シリーズ（5.2, 5.1, 5, Mini, Nano）およびOシリーズモデルをフルサポート。
+- **マルチプロバイダー対応**: OpenAI（GPT-5.2, 5.1, 5 mini, 5 nano）と Google Gemini（3 Pro/Flash Preview, 2.5 Pro/Flash）をサポート。
+- **Reasoning Effort制御**: 対応モデルで推論の深さ（none/minimal/low/medium/high）を選択可能。OpenAIは `reasoning.effort`、Geminiは `thinkingConfig.thinkingLevel` にマッピング。
 - **マルチモーダル機能**:
-    - **ビジョン**: 画像をドラッグ＆ドロップまたは貼り付けて分析可能。
-    - **画像生成**: チャットフロー内で直接画像を生成。
-    - **コードインタープリター**: コードを実行してデータを分析（対応モデルのみ）。
+    - **ビジョン**: 画像をドラッグ＆ドロップまたは貼り付けて分析可能（OpenAI・Gemini両対応）。
+    - **画像生成**: チャットフロー内で直接画像を生成（OpenAIのみ）。
+    - **コードインタープリター**: コードを実行してデータを分析（OpenAIのみ）。
 - **ウェブ検索**: 最新情報を取得するためのウェブブラウジング機能をトグルで切り替え可能。
 - **ストリーミング応答**: Server-Sent Events (SSE) を使用したリアルタイムでスムーズなテキストストリーミング。
 - **アプリライクなUI**:
@@ -47,8 +48,9 @@ Ultra Light Chatは、軽量なサーバーコンポーネントを持つ **シ�
 
 2.  **バックエンド (APIプロキシ)**:
     -   `/api/chat` でホストされています。
-    -   OpenAI APIへのセキュアなゲートウェイとして機能します。
-    -   ストリーミング応答を処理し、クライアントに転送します。
+    -   OpenAI API / Google Gemini APIへのセキュアなゲートウェイとして機能します。
+    -   モデルIDに基づいてプロバイダーを自動判別し、各APIのフォーマットに変換します。
+    -   ストリーミング応答を処理し、統一されたSSEフォーマットでクライアントに転送します。
 
 ## 始め方
 
@@ -75,7 +77,8 @@ Ultra Light Chatは、軽量なサーバーコンポーネントを持つ **シ�
     ルートディレクトリに `.env` ファイルを作成してください:
     ```env
     OPENAI_API_KEY=sk-...
-    OPENAI_MODEL=gpt-4.1-mini
+    OPENAI_MODEL=gpt-5-mini
+    GOOGLE_API_KEY=AIza...
     ```
 
 4.  開発サーバーを起動します:
@@ -120,7 +123,8 @@ Ultra Light Chatは、軽量なサーバーコンポーネントを持つ **シ�
 4.  **環境変数の設定**:
     Azureポータルの **Settings** > **Environment variables** で以下の設定を追加してください:
     -   `OPENAI_API_KEY`: あなたのOpenAI APIキー
-    -   `OPENAI_MODEL`: (任意) デフォルトモデル
+    -   `OPENAI_MODEL`: (任意) デフォルトモデル (デフォルト: `gpt-5-mini`)
+    -   `GOOGLE_API_KEY`: あなたのGoogle Gemini APIキー
     -   `ORIGIN`: 本番環境のURL (例: `https://your-app-name.azurewebsites.net`) ※CSRF保護のため重要です
     -   `PORT`: `8080` (Azure App Service のデフォルトポートに合わせて自動設定されますが、明示的に指定も可能)
 

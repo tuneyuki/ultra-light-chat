@@ -200,7 +200,7 @@
 	<div class="toolbar">
 		<div class="toolbar-toggles">
 			{#if supportsWebSearch}
-				<label class="toggle-label">
+				<label class="toggle-label" title="Web検索を使って最新情報を取得します">
 					<span class="toggle-track" class:active={webSearch}>
 						<span class="toggle-thumb"></span>
 					</span>
@@ -210,7 +210,7 @@
 				</label>
 			{/if}
 			{#if supportsImageGen}
-				<label class="toggle-label">
+				<label class="toggle-label" title="AIが画像を生成します">
 					<span class="toggle-track" class:active={imageGeneration}>
 						<span class="toggle-thumb"></span>
 					</span>
@@ -220,7 +220,7 @@
 				</label>
 			{/if}
 			{#if supportsCodeInterpreter}
-				<label class="toggle-label">
+				<label class="toggle-label" title="Pythonコードを実行して計算やファイル処理を行います">
 					<span class="toggle-track" class:active={codeInterpreter}>
 						<span class="toggle-thumb"></span>
 					</span>
