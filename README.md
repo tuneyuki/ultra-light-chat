@@ -39,18 +39,35 @@ Ultra Light Chatの目標は、軽量でありながら、ネイティブアプ�
 
 ## アーキテクチャ
 
-Ultra Light Chatは、軽量なサーバーコンポーネントを持つ **シングルページアプリケーション (SPA)** として動作します。
+Ultra Light Chatは、SvelteKitの機能を活用して、**クライアントサイド**と**サーバーサイド**の責務を明確に分離しています。軽量なサーバーコンポーネントを持つ **シングルページアプリケーション (SPA)** として動作します。
 
-1.  **フロントエンド (SPA)**:
-    -   初期ロード後は完全にブラウザ内で動作します。
-    -   Svelte 5 Runesを使用して状態を管理します。
-    -   データを `localStorage` に保存します。
+### 1. サーバーサイド (API/バックエンド)
+- **場所**: `src/routes/api/chat/+server.js`
+- **役割**: OpenAIやGoogle GeminiのAPIとの通信を担当するセキュアなゲートウェイです。
+- **特徴**:
+    -   APIキー（`OPENAI_API_KEY`, `GOOGLE_API_KEY`）などの秘密情報を安全に扱います（クライアントには公開されません）。
+    -   クライアントからのリクエストを受け取り、適切なAIプロバイダーのAPI形式に変換してリクエストします。
+    -   AIからのストリーミング応答を、統一されたServer-Sent Events (SSE) 形式に変換してクライアントに返します。
 
-2.  **バックエンド (APIプロキシ)**:
-    -   `/api/chat` でホストされています。
-    -   OpenAI API / Google Gemini APIへのセキュアなゲートウェイとして機能します。
-    -   モデルIDに基づいてプロバイダーを自動判別し、各APIのフォーマットに変換します。
-    -   ストリーミング応答を処理し、統一されたSSEフォーマットでクライアントに転送します。
+### 2. クライアントサイド (フロントエンド/UI)
+- **場所**: `src/routes/+page.svelte`
+- **役割**: ユーザーインターフェースの表示、状態管理、ユーザー入力の処理を行います。
+- **特徴**:
+    -   初期ロード後はブラウザ上で動作するSPAです。
+    -   Svelte 5 Runesを使用してリアクティブな状態管理を行います。
+    -   チャット履歴などのデータをブラウザの `localStorage` に保存します。
+    -   サーバーサイドAPI (`/api/chat`) に対して非同期リクエストを行い、ストリーミングレスポンスをリアルタイムに表示します。
+
+### データフロー
+```mermaid
+graph LR
+    User[ユーザー] -->|入力| Client[クライアント (Browser)\n+page.svelte]
+    Client -->|APIリクエスト| Server[サーバー (Node.js/Edge)\napi/chat/+server.js]
+    Server -->|API呼び出し| AI[OpenAI / Gemini API]
+    AI -->|応答| Server
+    Server -->|SSEストリーム| Client
+    Client -->|描画| User
+```
 
 ## 始め方
 
