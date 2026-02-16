@@ -1,5 +1,6 @@
 <script>
-	import { MODELS } from '$lib/models.js';
+	import { MODELS } from "$lib/models.js";
+	import { generateId } from "$lib/utils.js";
 
 	/** @type {{
 	 *   models: { id: string, label: string }[],
@@ -17,18 +18,18 @@
 		reasoningEffort = $bindable(),
 		prompts = [],
 		onSavePrompt,
-		onDeletePrompt
+		onDeletePrompt,
 	} = $props();
 
 	let reasoningEfforts = $derived(
-		MODELS.find((m) => m.id === currentModel)?.reasoningEfforts ?? null
+		MODELS.find((m) => m.id === currentModel)?.reasoningEfforts ?? null,
 	);
 
-	let selectedPromptId = $state('');
+	let selectedPromptId = $state("");
 
 	function handlePromptSelect() {
 		if (!selectedPromptId) {
-			currentSystemPrompt = '';
+			currentSystemPrompt = "";
 			return;
 		}
 		const found = prompts.find((p) => p.id === selectedPromptId);
@@ -40,9 +41,9 @@
 	function handleSave() {
 		const content = currentSystemPrompt.trim();
 		if (!content) return;
-		const name = prompt('プロンプト名を入力:');
+		const name = prompt("プロンプト名を入力:");
 		if (!name) return;
-		const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+		const id = generateId();
 		onSavePrompt({ id, name, content });
 		selectedPromptId = id;
 	}
@@ -50,8 +51,8 @@
 	function handleDelete() {
 		if (!selectedPromptId) return;
 		onDeletePrompt(selectedPromptId);
-		selectedPromptId = '';
-		currentSystemPrompt = '';
+		selectedPromptId = "";
+		currentSystemPrompt = "";
 	}
 </script>
 
@@ -62,7 +63,11 @@
 	<div class="setup-panel">
 		<div class="setup-field">
 			<label class="setup-label" for="model-select">Model</label>
-			<select id="model-select" class="setup-select" bind:value={currentModel}>
+			<select
+				id="model-select"
+				class="setup-select"
+				bind:value={currentModel}
+			>
 				{#each models as m (m.id)}
 					<option value={m.id}>{m.label}</option>
 				{/each}
@@ -70,17 +75,29 @@
 		</div>
 		{#if reasoningEfforts}
 			<div class="setup-field">
-				<label class="setup-label" for="reasoning-select">Reasoning Effort</label>
-				<select id="reasoning-select" class="setup-select" bind:value={reasoningEffort}>
+				<label class="setup-label" for="reasoning-select"
+					>Reasoning Effort</label
+				>
+				<select
+					id="reasoning-select"
+					class="setup-select"
+					bind:value={reasoningEffort}
+				>
 					{#each reasoningEfforts as level (level)}
-						<option value={level}>{level === 'minimal' ? 'minimal (=none)' : level}</option>
+						<option value={level}
+							>{level === "minimal"
+								? "minimal (=none)"
+								: level}</option
+						>
 					{/each}
 				</select>
 			</div>
 		{/if}
 		<div class="setup-field">
 			<div class="prompt-header">
-				<label class="setup-label" for="system-prompt">System Prompt</label>
+				<label class="setup-label" for="system-prompt"
+					>System Prompt</label
+				>
 				<select
 					class="prompt-select"
 					bind:value={selectedPromptId}
@@ -91,9 +108,17 @@
 						<option value={p.id}>{p.name}</option>
 					{/each}
 				</select>
-				<button class="prompt-btn" onclick={handleSave} title="現在のプロンプトを保存">+</button>
+				<button
+					class="prompt-btn"
+					onclick={handleSave}
+					title="現在のプロンプトを保存">+</button
+				>
 				{#if selectedPromptId}
-					<button class="prompt-btn prompt-btn-delete" onclick={handleDelete} title="選択中のプロンプトを削除">×</button>
+					<button
+						class="prompt-btn prompt-btn-delete"
+						onclick={handleDelete}
+						title="選択中のプロンプトを削除">×</button
+					>
 				{/if}
 			</div>
 			<textarea

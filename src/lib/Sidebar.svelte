@@ -1,25 +1,33 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount } from "svelte";
 
-	/** @type {import('./types.js').Conversation[]} */
-	let { conversations = [], activeId = '', onSelect, onNew, onDelete, onDeleteAll, onOpenSettings } = $props();
+	/** @type {{ conversations: import('./types.js').Conversation[], activeId: string, onSelect: (id: string) => void, onNew: () => void, onDelete: (id: string) => void, onDeleteAll: () => void, onOpenSettings: () => void }} */
+	let {
+		conversations = [],
+		activeId = "",
+		onSelect,
+		onNew,
+		onDelete,
+		onDeleteAll,
+		onOpenSettings,
+	} = $props();
 
 	let open = $state(false);
 	let collapsed = $state(false);
 	let showDeleteAllConfirm = $state(false);
 
 	onMount(() => {
-		collapsed = localStorage.getItem('ulc-sidebar-collapsed') === 'true';
+		collapsed = localStorage.getItem("ulc-sidebar-collapsed") === "true";
 	});
 
 	function toggleCollapse() {
 		collapsed = !collapsed;
-		localStorage.setItem('ulc-sidebar-collapsed', String(collapsed));
+		localStorage.setItem("ulc-sidebar-collapsed", String(collapsed));
 	}
 
 	/** @type {import('./types.js').Conversation[]} */
 	let sorted = $derived(
-		[...conversations].sort((a, b) => b.updatedAt - a.updatedAt)
+		[...conversations].sort((a, b) => b.updatedAt - a.updatedAt),
 	);
 
 	function toggleSidebar() {
@@ -47,19 +55,33 @@
 <!-- Mobile toggle -->
 <button class="hamburger" onclick={toggleSidebar} aria-label="Toggle sidebar">
 	<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-		<rect x="2" y="4" width="16" height="2" rx="1"/>
-		<rect x="2" y="9" width="16" height="2" rx="1"/>
-		<rect x="2" y="14" width="16" height="2" rx="1"/>
+		<rect x="2" y="4" width="16" height="2" rx="1" />
+		<rect x="2" y="9" width="16" height="2" rx="1" />
+		<rect x="2" y="14" width="16" height="2" rx="1" />
 	</svg>
 </button>
 
 <!-- Desktop expand button (shown when collapsed) -->
 {#if collapsed}
-	<button class="expand-btn" onclick={toggleCollapse} aria-label="Expand sidebar" title="サイドバーを展開">
-		<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-			<rect x="1" y="2" width="16" height="14" rx="2"/>
-			<line x1="6" y1="2" x2="6" y2="16"/>
-			<polyline points="9,7 12,9 9,11"/>
+	<button
+		class="expand-btn"
+		onclick={toggleCollapse}
+		aria-label="Expand sidebar"
+		title="サイドバーを展開"
+	>
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 18 18"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.5"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<rect x="1" y="2" width="16" height="14" rx="2" />
+			<line x1="6" y1="2" x2="6" y2="16" />
+			<polyline points="9,7 12,9 9,11" />
 		</svg>
 	</button>
 {/if}
@@ -67,22 +89,53 @@
 <!-- Overlay for mobile -->
 {#if open}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="overlay" onclick={() => open = false} onkeydown={() => {}}></div>
+	<div
+		class="overlay"
+		onclick={() => (open = false)}
+		onkeydown={() => {}}
+	></div>
 {/if}
 
 <aside class="sidebar" class:open class:collapsed>
 	<div class="sidebar-top-row">
 		<button class="new-chat-btn" onclick={onNew}>
-		<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-			<line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
-		</svg>
-		New Chat
+			<svg
+				width="16"
+				height="16"
+				viewBox="0 0 16 16"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+			>
+				<line x1="8" y1="2" x2="8" y2="14" /><line
+					x1="2"
+					y1="8"
+					x2="14"
+					y2="8"
+				/>
+			</svg>
+			New Chat
 		</button>
-		<button class="collapse-btn" onclick={toggleCollapse} aria-label="Collapse sidebar" title="サイドバーを折りたたむ">
-			<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-				<rect x="1" y="2" width="16" height="14" rx="2"/>
-				<line x1="6" y1="2" x2="6" y2="16"/>
-				<polyline points="12,7 9,9 12,11"/>
+		<button
+			class="collapse-btn"
+			onclick={toggleCollapse}
+			aria-label="Collapse sidebar"
+			title="サイドバーを折りたたむ"
+		>
+			<svg
+				width="18"
+				height="18"
+				viewBox="0 0 18 18"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<rect x="1" y="2" width="16" height="14" rx="2" />
+				<line x1="6" y1="2" x2="6" y2="16" />
+				<polyline points="12,7 9,9 12,11" />
 			</svg>
 		</button>
 	</div>
@@ -91,12 +144,14 @@
 
 	<nav class="conversation-list">
 		{#each sorted as conv (conv.id)}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				class="conv-item"
 				class:active={conv.id === activeId}
 				onclick={() => handleSelect(conv.id)}
-				onkeydown={(e) => { if (e.key === 'Enter') handleSelect(conv.id); }}
+				onkeydown={(e) => {
+					if (e.key === "Enter") handleSelect(conv.id);
+				}}
 				role="button"
 				tabindex="0"
 			>
@@ -106,8 +161,21 @@
 					onclick={(e) => handleDelete(e, conv.id)}
 					aria-label="Delete conversation"
 				>
-					<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-						<line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/>
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 14 14"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+					>
+						<line x1="3" y1="3" x2="11" y2="11" /><line
+							x1="11"
+							y1="3"
+							x2="3"
+							y2="11"
+						/>
 					</svg>
 				</button>
 			</div>
@@ -117,16 +185,42 @@
 	<hr class="sidebar-divider" />
 
 	{#if conversations.length > 0}
-		<button class="delete-all-btn" onclick={() => showDeleteAllConfirm = true}>
-			<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.3 4V2.7a1.3 1.3 0 011.4-1.4h2.6a1.3 1.3 0 011.4 1.4V4M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4"/></svg>
+		<button
+			class="delete-all-btn"
+			onclick={() => (showDeleteAllConfirm = true)}
+		>
+			<svg
+				width="16"
+				height="16"
+				viewBox="0 0 16 16"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				><path
+					d="M2 4h12M5.3 4V2.7a1.3 1.3 0 011.4-1.4h2.6a1.3 1.3 0 011.4 1.4V4M12.7 4v9.3a1.3 1.3 0 01-1.4 1.4H4.7a1.3 1.3 0 01-1.4-1.4V4"
+				/></svg
+			>
 			履歴を全削除
 		</button>
 	{/if}
 
 	<button class="settings-btn" onclick={onOpenSettings}>
-		<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-			<circle cx="9" cy="9" r="2.5"/>
-			<path d="M14.7 11.1a1.2 1.2 0 0 0 .2 1.3l.1.1a1.5 1.5 0 1 1-2.1 2.1l-.1-.1a1.2 1.2 0 0 0-1.3-.2 1.2 1.2 0 0 0-.7 1.1v.1a1.5 1.5 0 1 1-3 0v-.1a1.2 1.2 0 0 0-.8-1.1 1.2 1.2 0 0 0-1.3.2l-.1.1a1.5 1.5 0 1 1-2.1-2.1l.1-.1a1.2 1.2 0 0 0 .2-1.3 1.2 1.2 0 0 0-1.1-.7h-.1a1.5 1.5 0 1 1 0-3h.1a1.2 1.2 0 0 0 1.1-.8 1.2 1.2 0 0 0-.2-1.3l-.1-.1a1.5 1.5 0 1 1 2.1-2.1l.1.1a1.2 1.2 0 0 0 1.3.2h.1a1.2 1.2 0 0 0 .7-1.1v-.1a1.5 1.5 0 1 1 3 0v.1a1.2 1.2 0 0 0 .7 1.1 1.2 1.2 0 0 0 1.3-.2l.1-.1a1.5 1.5 0 1 1 2.1 2.1l-.1.1a1.2 1.2 0 0 0-.2 1.3v.1a1.2 1.2 0 0 0 1.1.7h.1a1.5 1.5 0 0 1 0 3h-.1a1.2 1.2 0 0 0-1.1.7z"/>
+		<svg
+			width="18"
+			height="18"
+			viewBox="0 0 18 18"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.5"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<circle cx="9" cy="9" r="2.5" />
+			<path
+				d="M14.7 11.1a1.2 1.2 0 0 0 .2 1.3l.1.1a1.5 1.5 0 1 1-2.1 2.1l-.1-.1a1.2 1.2 0 0 0-1.3-.2 1.2 1.2 0 0 0-.7 1.1v.1a1.5 1.5 0 1 1-3 0v-.1a1.2 1.2 0 0 0-.8-1.1 1.2 1.2 0 0 0-1.3.2l-.1.1a1.5 1.5 0 1 1-2.1-2.1l.1-.1a1.2 1.2 0 0 0 .2-1.3 1.2 1.2 0 0 0-1.1-.7h-.1a1.5 1.5 0 1 1 0-3h.1a1.2 1.2 0 0 0 1.1-.8 1.2 1.2 0 0 0-.2-1.3l-.1-.1a1.5 1.5 0 1 1 2.1-2.1l.1.1a1.2 1.2 0 0 0 1.3.2h.1a1.2 1.2 0 0 0 .7-1.1v-.1a1.5 1.5 0 1 1 3 0v.1a1.2 1.2 0 0 0 .7 1.1 1.2 1.2 0 0 0 1.3-.2l.1-.1a1.5 1.5 0 1 1 2.1 2.1l-.1.1a1.2 1.2 0 0 0-.2 1.3v.1a1.2 1.2 0 0 0 1.1.7h.1a1.5 1.5 0 0 1 0 3h-.1a1.2 1.2 0 0 0-1.1.7z"
+			/>
 		</svg>
 		Settings
 	</button>
@@ -134,14 +228,34 @@
 
 {#if showDeleteAllConfirm}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="confirm-overlay" onclick={() => showDeleteAllConfirm = false} onkeydown={() => {}}>
+	<div
+		class="confirm-overlay"
+		onclick={() => (showDeleteAllConfirm = false)}
+		onkeydown={() => {}}
+	>
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div class="confirm-modal" onclick={(e) => e.stopPropagation()} onkeydown={() => {}}>
+		<div
+			class="confirm-modal"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={() => {}}
+		>
 			<p class="confirm-title">履歴を全削除しますか？</p>
-			<p class="confirm-desc">すべてのチャット履歴が削除されます。この操作は元に戻せません。</p>
+			<p class="confirm-desc">
+				すべてのチャット履歴が削除されます。この操作は元に戻せません。
+			</p>
 			<div class="confirm-actions">
-				<button class="confirm-btn confirm-cancel" onclick={() => showDeleteAllConfirm = false}>キャンセル</button>
-				<button class="confirm-btn confirm-delete" onclick={() => { showDeleteAllConfirm = false; onDeleteAll(); }}>全削除</button>
+				<button
+					class="confirm-btn confirm-cancel"
+					onclick={() => (showDeleteAllConfirm = false)}
+					>キャンセル</button
+				>
+				<button
+					class="confirm-btn confirm-delete"
+					onclick={() => {
+						showDeleteAllConfirm = false;
+						onDeleteAll();
+					}}>全削除</button
+				>
 			</div>
 		</div>
 	</div>
@@ -162,7 +276,10 @@
 		box-shadow: var(--sidebar-shadow);
 		border-right: 1px solid var(--sidebar-border);
 		z-index: 1;
-		transition: width 0.2s ease, padding 0.2s ease, opacity 0.2s ease;
+		transition:
+			width 0.2s ease,
+			padding 0.2s ease,
+			opacity 0.2s ease;
 	}
 
 	.sidebar.collapsed {
@@ -211,7 +328,9 @@
 		color: var(--sidebar-text-muted);
 		cursor: pointer;
 		flex-shrink: 0;
-		transition: background 0.15s, color 0.15s;
+		transition:
+			background 0.15s,
+			color 0.15s;
 	}
 
 	.collapse-btn:hover {
@@ -234,7 +353,9 @@
 		cursor: pointer;
 		align-items: center;
 		justify-content: center;
-		transition: background 0.15s, color 0.15s;
+		transition:
+			background 0.15s,
+			color 0.15s;
 	}
 
 	.expand-btn:hover {
@@ -319,7 +440,9 @@
 		color: var(--sidebar-text-muted);
 		font-size: 0.875rem;
 		cursor: pointer;
-		transition: background 0.15s, color 0.15s;
+		transition:
+			background 0.15s,
+			color 0.15s;
 		flex-shrink: 0;
 	}
 
@@ -346,7 +469,9 @@
 		color: var(--sidebar-text-muted);
 		font-size: 0.875rem;
 		cursor: pointer;
-		transition: background 0.15s, color 0.15s;
+		transition:
+			background 0.15s,
+			color 0.15s;
 		flex-shrink: 0;
 	}
 
