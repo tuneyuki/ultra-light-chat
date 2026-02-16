@@ -340,14 +340,19 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, rea
 		body.generationConfig = { .../** @type {Record<string, unknown>} */ (body.generationConfig), thinkingConfig: { thinkingLevel: reasoningEffort } };
 	}
 
-	const lastUserMessage = contents.filter((c) => c.role === 'user').pop();
+	const lastUserParts = contents.filter((c) => c.role === 'user').pop()?.parts ?? [];
+	const lastUserText = lastUserParts.find((p) => 'text' in p)?.text || '[empty]';
+	const imageCount = lastUserParts.filter((p) => 'inline_data' in p).length;
 	console.log(JSON.stringify({
 		provider: 'gemini',
 		model,
-		input: lastUserMessage?.parts?.[0]?.text || '[empty]',
+		input: lastUserText,
+		images: imageCount,
+		files: [],
 		system_prompt: systemPrompt || null,
 		tools: { web_search: !!webSearch, image_generation: false, code_interpreter: false },
 		reasoning_effort: reasoningEffort || null,
+		has_previous_response: false,
 		message_count: contents.length,
 		user: userId
 	}));
