@@ -14,7 +14,7 @@ function getProvider(modelId) {
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
-	const { input, chat_id, model, system_prompt, web_search, image_generation, code_interpreter, messages } = await request.json();
+	const { input, chat_id, model, system_prompt, web_search, image_generation, code_interpreter, messages, reasoning_effort } = await request.json();
 	const userId = request.headers.get('x-ms-client-principal-name') || null;
 
 	// model is always sent from the client; fallback is for direct API calls
@@ -22,10 +22,10 @@ export async function POST({ request }) {
 	const provider = getProvider(resolvedModel);
 
 	if (provider === 'gemini') {
-		return handleGemini(resolvedModel, input, messages, system_prompt, web_search, userId);
+		return handleGemini(resolvedModel, input, messages, system_prompt, web_search, reasoning_effort, userId);
 	}
 
-	return handleOpenAI(resolvedModel, input, chat_id, system_prompt, web_search, image_generation, code_interpreter, userId);
+	return handleOpenAI(resolvedModel, input, chat_id, system_prompt, web_search, image_generation, code_interpreter, reasoning_effort, userId);
 }
 
 /**
@@ -36,10 +36,11 @@ export async function POST({ request }) {
  * @param {boolean | undefined} webSearch
  * @param {boolean | undefined} imageGeneration
  * @param {boolean | undefined} codeInterpreter
+ * @param {string | undefined} reasoningEffort
  * @param {string | null} userId
  * @returns {Promise<Response>}
  */
-async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, imageGeneration, codeInterpreter, userId) {
+async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, imageGeneration, codeInterpreter, reasoningEffort, userId) {
 	const apiKey = env.OPENAI_API_KEY;
 	if (!apiKey) {
 		return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), {
@@ -70,6 +71,10 @@ async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, image
 	if (codeInterpreter) tools.push({ type: 'code_interpreter', container: { type: 'auto' } });
 	if (tools.length > 0) body.tools = tools;
 
+	if (reasoningEffort) {
+		body.reasoning = { effort: reasoningEffort };
+	}
+
 	/** @type {string} */
 	let logInput = '';
 	/** @type {number} */
@@ -98,6 +103,7 @@ async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, image
 		files: attachedFiles,
 		system_prompt: systemPrompt || null,
 		tools: { web_search: !!webSearch, image_generation: !!imageGeneration, code_interpreter: !!codeInterpreter },
+		reasoning_effort: reasoningEffort || null,
 		has_previous_response: !!chatId,
 		user: userId
 	}));
@@ -263,10 +269,11 @@ async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, image
  * @param {Array<{role: string, content: string}> | undefined} messages
  * @param {string | undefined} systemPrompt
  * @param {boolean | undefined} webSearch
+ * @param {string | undefined} reasoningEffort
  * @param {string | null} userId
  * @returns {Promise<Response>}
  */
-async function handleGemini(model, input, messages, systemPrompt, webSearch, userId) {
+async function handleGemini(model, input, messages, systemPrompt, webSearch, reasoningEffort, userId) {
 	const apiKey = env.GOOGLE_API_KEY;
 	if (!apiKey) {
 		return new Response(JSON.stringify({ error: 'GOOGLE_API_KEY is not configured' }), {
@@ -276,7 +283,7 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, use
 	}
 
 	// Build contents array from message history
-	/** @type {Array<{role: string, parts: Array<{text: string}>}>} */
+	/** @type {Array<{role: string, parts: Array<Record<string, unknown>>}>} */
 	const contents = [];
 
 	if (messages && messages.length > 0) {
@@ -286,10 +293,33 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, use
 				parts: [{ text: msg.content }]
 			});
 		}
-	} else {
-		// No history, just send the current input
-		const inputText = typeof input === 'string' ? input : '';
-		contents.push({ role: 'user', parts: [{ text: inputText }] });
+	}
+
+	// Build the current user turn from input (may contain images/files)
+	/** @type {Array<Record<string, unknown>>} */
+	const currentParts = [];
+	if (typeof input === 'string') {
+		if (input) currentParts.push({ text: input });
+	} else if (Array.isArray(input)) {
+		for (const item of input) {
+			if (!item.content || !Array.isArray(item.content)) continue;
+			for (const c of item.content) {
+				if (c.type === 'input_text' && c.text) {
+					currentParts.push({ text: c.text });
+				} else if (c.type === 'input_image' && c.image_url) {
+					// data URL format: "data:<mime>;base64,<data>"
+					const match = c.image_url.match(/^data:([^;]+);base64,(.+)$/s);
+					if (match) {
+						currentParts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+					}
+				}
+			}
+		}
+	}
+	if (currentParts.length > 0) {
+		contents.push({ role: 'user', parts: currentParts });
+	} else if (contents.length === 0) {
+		contents.push({ role: 'user', parts: [{ text: '' }] });
 	}
 
 	/** @type {Record<string, unknown>} */
@@ -306,6 +336,10 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, use
 		body.tools = [{ google_search: {} }];
 	}
 
+	if (reasoningEffort) {
+		body.generationConfig = { .../** @type {Record<string, unknown>} */ (body.generationConfig), thinkingConfig: { thinkingLevel: reasoningEffort } };
+	}
+
 	const lastUserMessage = contents.filter((c) => c.role === 'user').pop();
 	console.log(JSON.stringify({
 		provider: 'gemini',
@@ -313,6 +347,7 @@ async function handleGemini(model, input, messages, systemPrompt, webSearch, use
 		input: lastUserMessage?.parts?.[0]?.text || '[empty]',
 		system_prompt: systemPrompt || null,
 		tools: { web_search: !!webSearch, image_generation: false, code_interpreter: false },
+		reasoning_effort: reasoningEffort || null,
 		message_count: contents.length,
 		user: userId
 	}));

@@ -23,6 +23,7 @@
 	let activeConversationId = $state(/** @type {string | null} */ (null));
 	let currentModel = $state(DEFAULT_MODEL);
 	let currentSystemPrompt = $state('');
+	let reasoningEffort = $state('none');
 
 	let webSearch = $state(false);
 	let imageGeneration = $state(false);
@@ -62,6 +63,10 @@
 		MODELS.find((m) => m.id === currentModel)?.supportsWebSearch ?? false
 	);
 
+	let supportsReasoning = $derived(
+		MODELS.find((m) => m.id === currentModel)?.reasoningEfforts ?? null
+	);
+
 	$effect(() => {
 		if (!supportsImageGen) imageGeneration = false;
 	});
@@ -72,6 +77,11 @@
 
 	$effect(() => {
 		if (!supportsWebSearch) webSearch = false;
+	});
+
+	$effect(() => {
+		if (!supportsReasoning) reasoningEffort = 'none';
+		else reasoningEffort = supportsReasoning[0];
 	});
 
 	/**
@@ -128,6 +138,7 @@
 			chatId,
 			model: currentModel,
 			systemPrompt: currentSystemPrompt,
+			reasoningEffort: reasoningEffort !== 'none' ? reasoningEffort : undefined,
 			updatedAt: Date.now()
 		});
 		saveConversation(conv);
@@ -264,6 +275,7 @@
 				{
 					model: currentModel,
 					systemPrompt: currentSystemPrompt,
+					reasoningEffort: supportsReasoning ? reasoningEffort : undefined,
 					images: base64Images.length > 0 ? base64Images : undefined,
 					files: base64Files.length > 0 ? base64Files : undefined,
 					webSearch: webSearch || undefined,
@@ -344,6 +356,7 @@
 		webSearch = false;
 		imageGeneration = false;
 		codeInterpreter = false;
+		reasoningEffort = 'none';
 	}
 
 	/**
@@ -357,6 +370,7 @@
 		chatId = conv.chatId;
 		currentModel = conv.model || DEFAULT_MODEL;
 		currentSystemPrompt = conv.systemPrompt || '';
+		reasoningEffort = conv.reasoningEffort || 'none';
 		messageImageUrls = {};
 		await resolveImageUrls(messages);
 		scrollToBottom();
@@ -410,7 +424,7 @@
 		</header>
 		<main class="messages">
 			{#if messages.length === 0}
-				<EmptyState models={MODELS} bind:currentModel bind:currentSystemPrompt {prompts} onSavePrompt={handleSavePrompt} onDeletePrompt={handleDeletePrompt} />
+				<EmptyState models={MODELS} bind:currentModel bind:currentSystemPrompt bind:reasoningEffort {prompts} onSavePrompt={handleSavePrompt} onDeletePrompt={handleDeletePrompt} />
 			{/if}
 
 			{#each messages as msg, i}

@@ -28,6 +28,7 @@
  * @property {string | null} chatId
  * @property {string} model
  * @property {string} systemPrompt
+ * @property {string} [reasoningEffort]
  * @property {number} updatedAt
  */
 

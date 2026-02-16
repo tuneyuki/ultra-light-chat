@@ -1,8 +1,11 @@
 <script>
+	import { MODELS } from '$lib/models.js';
+
 	/** @type {{
 	 *   models: { id: string, label: string }[],
 	 *   currentModel: string,
 	 *   currentSystemPrompt: string,
+	 *   reasoningEffort: string,
 	 *   prompts: import('$lib/promptStore.js').SavedPrompt[],
 	 *   onSavePrompt: (prompt: import('$lib/promptStore.js').SavedPrompt) => void,
 	 *   onDeletePrompt: (id: string) => void
@@ -11,10 +14,15 @@
 		models,
 		currentModel = $bindable(),
 		currentSystemPrompt = $bindable(),
+		reasoningEffort = $bindable(),
 		prompts = [],
 		onSavePrompt,
 		onDeletePrompt
 	} = $props();
+
+	let reasoningEfforts = $derived(
+		MODELS.find((m) => m.id === currentModel)?.reasoningEfforts ?? null
+	);
 
 	let selectedPromptId = $state('');
 
@@ -60,6 +68,16 @@
 				{/each}
 			</select>
 		</div>
+		{#if reasoningEfforts}
+			<div class="setup-field">
+				<label class="setup-label" for="reasoning-select">Reasoning Effort</label>
+				<select id="reasoning-select" class="setup-select" bind:value={reasoningEffort}>
+					{#each reasoningEfforts as level (level)}
+						<option value={level}>{level === 'minimal' ? 'minimal (=none)' : level}</option>
+					{/each}
+				</select>
+			</div>
+		{/if}
 		<div class="setup-field">
 			<div class="prompt-header">
 				<label class="setup-label" for="system-prompt">System Prompt</label>
