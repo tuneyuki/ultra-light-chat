@@ -7,7 +7,7 @@ const API_URL = '/api/chat';
  * @param {(delta: string) => void} onDelta - Called for each text chunk
  * @param {(id: string | null) => void} onChatId - Called when a chat ID is returned
  * @param {AbortSignal} [signal] - Optional abort signal
- * @param {{ model?: string, systemPrompt?: string, reasoningEffort?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, containerId?: string, messages?: Array<{role: string, content: string}>, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string, container_id: string}) => void, onContainerId?: (containerId: string) => void, onGeminiFile?: (file: {filename: string, mime_type: string, blob_url: string}) => void }} [options] - Optional parameters
+ * @param {{ model?: string, systemPrompt?: string, reasoningEffort?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, containerId?: string, messages?: Array<{role: string, content: string}>, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onCodeOutput?: (output: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string, container_id: string}) => void, onContainerId?: (containerId: string) => void, onGeminiFile?: (file: {filename: string, mime_type: string, blob_url: string}) => void }} [options] - Optional parameters
  * @returns {Promise<void>}
  */
 export async function streamChat(input, chatId, onDelta, onChatId, signal, options) {
@@ -103,6 +103,11 @@ export async function streamChat(input, chatId, onDelta, onChatId, signal, optio
 
 				if (data.type === 'code_delta' && data.delta && options?.onCodeDelta) {
 					options.onCodeDelta(data.delta);
+					await new Promise((r) => setTimeout(r, 0));
+				}
+
+				if (data.type === 'code_output' && data.output && options?.onCodeOutput) {
+					options.onCodeOutput(data.output);
 					await new Promise((r) => setTimeout(r, 0));
 				}
 

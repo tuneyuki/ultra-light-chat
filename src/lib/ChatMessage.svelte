@@ -608,4 +608,29 @@
 		border-top: 1px solid var(--border-primary);
 		margin: 1em 0;
 	}
+
+	.markdown :global(details) {
+		border: 1px solid var(--border-primary);
+		border-radius: 8px;
+		margin: 0.75em 0;
+		overflow: hidden;
+	}
+
+	.markdown :global(summary) {
+		padding: 8px 12px;
+		cursor: pointer;
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		background: var(--bg-secondary);
+		user-select: none;
+	}
+
+	.markdown :global(summary:hover) {
+		color: var(--text-primary);
+	}
+
+	.markdown :global(details > :not(summary)) {
+		padding: 0 12px;
+	}
 </style>

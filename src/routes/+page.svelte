@@ -117,9 +117,20 @@
 				state.chatId,
 				(delta) => {
 					if (state.streamingCode) {
+						const code = state.streamingCode;
+						const output = state.streamingCodeOutput;
+						let detailsBlock =
+							"\n<details><summary>実行コード</summary>\n\n```python\n" +
+							code +
+							"\n```\n";
+						if (output) {
+							detailsBlock += "\n```\n" + output + "\n```\n";
+						}
+						detailsBlock += "\n</details>\n\n";
 						state.messages[state.messages.length - 1].content +=
-							"```\n" + state.streamingCode + "\n```\n\n";
+							detailsBlock;
 						state.streamingCode = "";
+						state.streamingCodeOutput = "";
 					}
 					state.streamingStatus = "";
 					state.messages[state.messages.length - 1].content += delta;
@@ -156,6 +167,10 @@
 					},
 					onCodeDelta: (delta) => {
 						state.streamingCode += delta;
+						scrollToBottom();
+					},
+					onCodeOutput: (output) => {
+						state.streamingCodeOutput += output;
 						scrollToBottom();
 					},
 					onImage: async (dataUrl, partial) => {
@@ -235,6 +250,7 @@
 			state.isStreaming = false;
 			state.streamingStatus = "";
 			state.streamingCode = "";
+			state.streamingCodeOutput = "";
 			state.clearAbortController();
 			scrollToBottom();
 			state.persistCurrentConversation();

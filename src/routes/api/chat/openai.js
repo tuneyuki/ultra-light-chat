@@ -272,7 +272,7 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
                             controller.enqueue(encoder.encode(imgEvent));
                         }
 
-                        // Extract output files from code_interpreter_call completed
+                        // Extract output files and logs from code_interpreter_call completed
                         if (data.type === 'response.code_interpreter_call.completed' && data.code_interpreter_call?.outputs) {
                             const cid = data.code_interpreter_call?.container_id || '';
                             if (cid && !detectedContainerId) detectedContainerId = cid;
@@ -281,6 +281,9 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
                                     for (const file of output.files) {
                                         emitOutputFile(file.file_id, file.filename || 'output', file.mime_type || 'application/octet-stream', cid);
                                     }
+                                }
+                                if (output.type === 'logs' && output.data) {
+                                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'code_output', output: output.data })}\n\n`));
                                 }
                             }
                         }

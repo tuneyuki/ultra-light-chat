@@ -13,6 +13,7 @@ export function createChatState() {
     let isStreaming = $state(false);
     let streamingStatus = $state('');
     let streamingCode = $state('');
+    let streamingCodeOutput = $state('');
     let chatId = $state(/** @type {string | null} */(null));
     let containerId = $state(/** @type {string | null} */(null));
 
@@ -207,6 +208,8 @@ export function createChatState() {
         set streamingStatus(v) { streamingStatus = v; },
         get streamingCode() { return streamingCode; },
         set streamingCode(v) { streamingCode = v; },
+        get streamingCodeOutput() { return streamingCodeOutput; },
+        set streamingCodeOutput(v) { streamingCodeOutput = v; },
         get chatId() { return chatId; },
         set chatId(v) { chatId = v; },
         get containerId() { return containerId; },

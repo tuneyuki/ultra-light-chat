@@ -169,7 +169,7 @@ export async function handleGemini(model, input, messages, systemPrompt, webSear
                                     const output = part.codeExecutionResult.output || '';
                                     if (output) {
                                         codeOutputs.push(output);
-                                        const resultEvent = `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: '\n```\n' + output + '\n```\n' })}\n\n`;
+                                        const resultEvent = `data: ${JSON.stringify({ type: 'code_output', output })}\n\n`;
                                         controller.enqueue(encoder.encode(resultEvent));
                                     }
                                 } else if (part.inlineData) {
