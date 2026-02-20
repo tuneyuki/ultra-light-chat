@@ -51,6 +51,12 @@ export async function handleGemini(model, input, messages, systemPrompt, webSear
                     if (match) {
                         currentParts.push({ inline_data: { mime_type: match[1], data: match[2] } });
                     }
+                } else if (c.type === 'input_file' && c.file_data) {
+                    // data URL format: "data:<mime>;base64,<data>"
+                    const match = c.file_data.match(/^data:([^;]+);base64,(.+)$/s);
+                    if (match) {
+                        currentParts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+                    }
                 }
             }
         }
@@ -83,13 +89,15 @@ export async function handleGemini(model, input, messages, systemPrompt, webSear
 
     const lastUserParts = contents.filter((c) => c.role === 'user').pop()?.parts ?? [];
     const lastUserText = lastUserParts.find((p) => 'text' in p)?.text || '[empty]';
-    const imageCount = lastUserParts.filter((p) => 'inline_data' in p).length;
+    const inlineDataParts = lastUserParts.filter((p) => 'inline_data' in p);
+    const imageCount = inlineDataParts.filter((p) => /** @type {any} */ (p).inline_data?.mime_type?.startsWith('image/')).length;
+    const fileCount = inlineDataParts.length - imageCount;
     console.log(JSON.stringify({
         provider: 'gemini',
         model,
         input: lastUserText,
         images: imageCount,
-        files: [],
+        files: fileCount,
         system_prompt: systemPrompt || null,
         tools: { web_search: !!webSearch, image_generation: false, code_interpreter: !!codeInterpreter },
         reasoning_effort: reasoningEffort || null,

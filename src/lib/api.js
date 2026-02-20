@@ -7,7 +7,7 @@ const API_URL = '/api/chat';
  * @param {(delta: string) => void} onDelta - Called for each text chunk
  * @param {(id: string | null) => void} onChatId - Called when a chat ID is returned
  * @param {AbortSignal} [signal] - Optional abort signal
- * @param {{ model?: string, systemPrompt?: string, reasoningEffort?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, messages?: Array<{role: string, content: string}>, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string, container_id: string}) => void, onGeminiFile?: (file: {filename: string, mime_type: string, blob_url: string}) => void }} [options] - Optional parameters
+ * @param {{ model?: string, systemPrompt?: string, reasoningEffort?: string, images?: string[], files?: Array<{filename: string, dataUrl: string}>, webSearch?: boolean, imageGeneration?: boolean, codeInterpreter?: boolean, containerId?: string, messages?: Array<{role: string, content: string}>, onImage?: (dataUrl: string, partial: boolean) => void, onStatus?: (status: string) => void, onCodeDelta?: (delta: string) => void, onOutputFile?: (file: {file_id: string, filename: string, mime_type: string, container_id: string}) => void, onContainerId?: (containerId: string) => void, onGeminiFile?: (file: {filename: string, mime_type: string, blob_url: string}) => void }} [options] - Optional parameters
  * @returns {Promise<void>}
  */
 export async function streamChat(input, chatId, onDelta, onChatId, signal, options) {
@@ -43,6 +43,7 @@ export async function streamChat(input, chatId, onDelta, onChatId, signal, optio
 	if (options?.webSearch) body.web_search = true;
 	if (options?.imageGeneration) body.image_generation = true;
 	if (options?.codeInterpreter) body.code_interpreter = true;
+	if (options?.containerId) body.container_id = options.containerId;
 	if (options?.messages) body.messages = options.messages;
 	if (options?.reasoningEffort) body.reasoning_effort = options.reasoningEffort;
 
@@ -127,6 +128,9 @@ export async function streamChat(input, chatId, onDelta, onChatId, signal, optio
 					});
 				}
 
+				if (data.container_id && options?.onContainerId) {
+					options.onContainerId(data.container_id);
+				}
 				if (data.chat_id) {
 					onChatId(data.chat_id);
 				}

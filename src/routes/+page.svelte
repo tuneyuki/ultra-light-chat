@@ -140,6 +140,7 @@
 					webSearch: state.webSearch || undefined,
 					imageGeneration: state.imageGeneration || undefined,
 					codeInterpreter: state.codeInterpreter || undefined,
+					containerId: state.containerId || undefined,
 					messages:
 						getProvider(state.currentModel) === "gemini"
 							? state.messages
@@ -178,6 +179,9 @@
 							state.persistCurrentConversation();
 						}
 						scrollToBottom();
+					},
+					onContainerId: (cid) => {
+						state.containerId = cid;
 					},
 					onOutputFile: (file) => {
 						const assistantMsg =

@@ -2,6 +2,39 @@ import { env } from '$env/dynamic/private';
 import { createSSEResponse } from './utils.js';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/responses';
+const OPENAI_FILES_URL = 'https://api.openai.com/v1/files';
+
+/**
+ * Upload a base64 data URL to OpenAI Files API and return the file_id.
+ * @param {string} apiKey
+ * @param {string} dataUrl - data URL (data:<mime>;base64,<data>)
+ * @param {string} filename
+ * @returns {Promise<string>} file_id
+ */
+async function uploadFileToOpenAI(apiKey, dataUrl, filename) {
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!match) throw new Error('Invalid data URL');
+    const base64 = match[2];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    const formData = new FormData();
+    formData.append('purpose', 'user_data');
+    formData.append('file', new Blob([bytes]), filename);
+
+    const res = await fetch(OPENAI_FILES_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: formData
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`File upload failed: ${res.status} ${text}`);
+    }
+    const data = await res.json();
+    return data.id;
+}
 
 /**
  * @param {string} model
@@ -12,10 +45,11 @@ const OPENAI_API_URL = 'https://api.openai.com/v1/responses';
  * @param {boolean | undefined} imageGeneration
  * @param {boolean | undefined} codeInterpreter
  * @param {string | undefined} reasoningEffort
+ * @param {string | undefined} containerId
  * @param {string | null} userId
  * @returns {Promise<Response>}
  */
-export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, imageGeneration, codeInterpreter, reasoningEffort, userId) {
+export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, imageGeneration, codeInterpreter, reasoningEffort, containerId, userId) {
     const apiKey = env.OPENAI_API_KEY;
     if (!apiKey) {
         return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), {
@@ -24,10 +58,44 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
         });
     }
 
+    // Upload input_file entries to OpenAI Files API when code_interpreter is enabled
+    /** @type {string[]} */
+    const uploadedFileIds = [];
+    /** @type {unknown} */
+    let processedInput = input;
+    if (codeInterpreter && Array.isArray(input)) {
+        /** @type {Array<Record<string, unknown>>} */
+        const newInput = [];
+        processedInput = newInput;
+        for (const item of input) {
+            if (!item.content || !Array.isArray(item.content)) {
+                newInput.push(item);
+                continue;
+            }
+            const newContent = [];
+            for (const c of item.content) {
+                if (c.type === 'input_file' && c.file_data) {
+                    try {
+                        const fileId = await uploadFileToOpenAI(apiKey, c.file_data, c.filename || 'upload');
+                        console.log('File uploaded:', c.filename, '→', fileId);
+                        uploadedFileIds.push(fileId);
+                        // Don't add to input — unsupported formats (e.g. CSV) cause errors.
+                        // Files are passed via container.file_ids for Code Interpreter access.
+                    } catch (e) {
+                        console.error('File upload error:', e);
+                    }
+                } else {
+                    newContent.push(c);
+                }
+            }
+            newInput.push({ ...item, content: newContent });
+        }
+    }
+
     /** @type {Record<string, unknown>} */
     const body = {
         model,
-        input,
+        input: processedInput,
         stream: true
     };
 
@@ -43,7 +111,19 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
     const tools = [];
     if (webSearch) tools.push({ type: 'web_search_preview' });
     if (imageGeneration) tools.push({ type: 'image_generation' });
-    if (codeInterpreter) tools.push({ type: 'code_interpreter', container: { type: 'auto' } });
+    if (codeInterpreter) {
+        /** @type {unknown} */
+        let container;
+        if (containerId) {
+            container = containerId;
+        } else {
+            /** @type {Record<string, unknown>} */
+            const autoContainer = { type: 'auto' };
+            if (uploadedFileIds.length > 0) autoContainer.file_ids = uploadedFileIds;
+            container = autoContainer;
+        }
+        tools.push({ type: 'code_interpreter', container });
+    }
     if (tools.length > 0) body.tools = tools;
 
     if (reasoningEffort) {
@@ -83,7 +163,7 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
         user: userId
     }));
 
-    const upstream = await fetch(OPENAI_API_URL, {
+    let upstream = await fetch(OPENAI_API_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -92,8 +172,29 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
         body: JSON.stringify(body)
     });
 
+    // If specific container failed (expired), retry with auto
+    if (!upstream.ok && containerId) {
+        console.log('Container may have expired, retrying with auto container');
+        const ciTool = /** @type {Record<string, unknown> | undefined} */ (tools.find((t) => t.type === 'code_interpreter'));
+        if (ciTool) {
+            /** @type {Record<string, unknown>} */
+            const autoContainer = { type: 'auto' };
+            if (uploadedFileIds.length > 0) autoContainer.file_ids = uploadedFileIds;
+            ciTool.container = autoContainer;
+        }
+        upstream = await fetch(OPENAI_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(body)
+        });
+    }
+
     if (!upstream.ok) {
         const text = await upstream.text();
+        console.error('OpenAI API error:', upstream.status, text);
         return new Response(text, {
             status: upstream.status,
             headers: { 'Content-Type': 'application/json' }
@@ -113,6 +214,8 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
             let buffer = '';
             /** @type {Set<string>} */
             const sentFileIds = new Set();
+            /** @type {string} */
+            let detectedContainerId = '';
 
             /**
              * @param {string} file_id
@@ -172,6 +275,7 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
                         // Extract output files from code_interpreter_call completed
                         if (data.type === 'response.code_interpreter_call.completed' && data.code_interpreter_call?.outputs) {
                             const cid = data.code_interpreter_call?.container_id || '';
+                            if (cid && !detectedContainerId) detectedContainerId = cid;
                             for (const output of data.code_interpreter_call.outputs) {
                                 if (output.type === 'files' && output.files) {
                                     for (const file of output.files) {
@@ -214,7 +318,19 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
                                     }
                                 }
                             }
-                            const chatIdEvent = `data: ${JSON.stringify({ chat_id: data.response.id })}\n\n`;
+                            // Extract container_id from code_interpreter_call items
+                            if (!detectedContainerId) {
+                                for (const item of data.response.output) {
+                                    if (item.type === 'code_interpreter_call' && item.container_id) {
+                                        detectedContainerId = item.container_id;
+                                        break;
+                                    }
+                                }
+                            }
+                            /** @type {Record<string, unknown>} */
+                            const completedEvent = { chat_id: data.response.id };
+                            if (detectedContainerId) completedEvent.container_id = detectedContainerId;
+                            const chatIdEvent = `data: ${JSON.stringify(completedEvent)}\n\n`;
                             controller.enqueue(encoder.encode(chatIdEvent));
                         }
                     } catch {

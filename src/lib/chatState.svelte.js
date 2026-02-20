@@ -14,6 +14,7 @@ export function createChatState() {
     let streamingStatus = $state('');
     let streamingCode = $state('');
     let chatId = $state(/** @type {string | null} */(null));
+    let containerId = $state(/** @type {string | null} */(null));
 
     /** @type {import('$lib/types.js').Conversation[]} */
     let conversations = $state([]);
@@ -109,6 +110,7 @@ export function createChatState() {
                 return msg;
             }),
             chatId,
+            containerId: containerId || undefined,
             model: currentModel,
             systemPrompt: currentSystemPrompt,
             reasoningEffort: reasoningEffort !== 'none' ? reasoningEffort : undefined,
@@ -123,6 +125,7 @@ export function createChatState() {
         activeConversationId = null;
         messages = [];
         chatId = null;
+        containerId = null;
         messageImageUrls = {};
         currentSystemPrompt = '';
         webSearch = false;
@@ -140,6 +143,7 @@ export function createChatState() {
         activeConversationId = conv.id;
         messages = conv.messages.map((m) => ({ ...m }));
         chatId = conv.chatId;
+        containerId = conv.containerId || null;
         currentModel = conv.model || DEFAULT_MODEL;
         currentSystemPrompt = conv.systemPrompt || '';
         reasoningEffort = conv.reasoningEffort || 'none';
@@ -205,6 +209,8 @@ export function createChatState() {
         set streamingCode(v) { streamingCode = v; },
         get chatId() { return chatId; },
         set chatId(v) { chatId = v; },
+        get containerId() { return containerId; },
+        set containerId(v) { containerId = v; },
         get conversations() { return conversations; },
         get activeConversationId() { return activeConversationId; },
         set activeConversationId(v) { activeConversationId = v; },

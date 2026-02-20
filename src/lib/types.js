@@ -27,6 +27,7 @@
  * @property {string} title
  * @property {Message[]} messages
  * @property {string | null} chatId
+ * @property {string | null} [containerId]
  * @property {string} model
  * @property {string} systemPrompt
  * @property {string} [reasoningEffort]
