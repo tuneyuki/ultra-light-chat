@@ -24,6 +24,14 @@
 	let attachedFiles = $state([]);
 
 	let showAttach = $derived(supportsImage || codeInterpreter);
+	let wasStreaming = $state(false);
+
+	$effect(() => {
+		if (wasStreaming && !isStreaming) {
+			textareaEl?.focus();
+		}
+		wasStreaming = isStreaming;
+	});
 
 	/** @type {HTMLTextAreaElement | undefined} */
 	let textareaEl;
