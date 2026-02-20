@@ -18,6 +18,7 @@ export const MODELS = [
 	{ id: 'gpt-5.1', label: 'GPT-5.1', provider: 'openai', supportsImage: true, supportsImageGen: true, supportsCodeInterpreter: true, supportsWebSearch: true, reasoningEfforts: ['low', 'medium', 'high'] },
 	{ id: 'gpt-5-mini', label: 'GPT-5 mini', provider: 'openai', supportsImage: true, supportsImageGen: true, supportsCodeInterpreter: true, supportsWebSearch: true, reasoningEfforts: ['low', 'medium', 'high'] },
 	{ id: 'gpt-5-nano', label: 'GPT-5 nano', provider: 'openai', supportsImage: true, supportsImageGen: true, supportsCodeInterpreter: true, supportsWebSearch: true, reasoningEfforts: ['low', 'medium', 'high'] },
+	{ id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview', provider: 'gemini', supportsImage: true, supportsImageGen: false, supportsCodeInterpreter: true, supportsWebSearch: true, reasoningEfforts: ['low', 'medium', 'high'] },
 	{ id: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview', provider: 'gemini', supportsImage: true, supportsImageGen: false, supportsCodeInterpreter: false, supportsWebSearch: true, reasoningEfforts: ['low', 'high'] },
 	{ id: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview', provider: 'gemini', supportsImage: true, supportsImageGen: false, supportsCodeInterpreter: true, supportsWebSearch: true, reasoningEfforts: ['minimal', 'low', 'medium', 'high'] },
 	{ id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'gemini', supportsImage: true, supportsImageGen: false, supportsCodeInterpreter: false, supportsWebSearch: true, reasoningEfforts: null },
