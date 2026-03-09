@@ -5,9 +5,11 @@
 	import { generateId } from "$lib/utils.js";
 	import { createChatState } from "$lib/chatState.svelte.js";
 	import { fileToDataUrl, dataUrlToBlob } from "$lib/imageUtils.js";
+	import { refreshMcpTokensIfNeeded } from "$lib/mcpStore.js";
 	import Sidebar from "$lib/Sidebar.svelte";
 	import SettingsModal from "$lib/SettingsModal.svelte";
 	import HelpModal from "$lib/HelpModal.svelte";
+	import McpModal from "$lib/McpModal.svelte";
 	import EmptyState from "$lib/EmptyState.svelte";
 	import ChatMessage from "$lib/ChatMessage.svelte";
 	import ChatInput from "$lib/ChatInput.svelte";
@@ -108,6 +110,12 @@
 		scrollToBottom();
 		state.persistCurrentConversation();
 
+		// Refresh MCP tokens if needed before sending
+		if (state.mcpEnabled && state.mcpServerCount > 0) {
+			await refreshMcpTokensIfNeeded();
+			state.reloadMcpConfigs();
+		}
+
 		const abortController = new AbortController();
 		state.setAbortController(abortController);
 
@@ -151,6 +159,7 @@
 					webSearch: state.webSearch || undefined,
 					imageGeneration: state.imageGeneration || undefined,
 					codeInterpreter: state.codeInterpreter || undefined,
+					mcpServers: state.getActiveMcpServers(),
 					containerId: state.containerId || undefined,
 					messages:
 						getProvider(state.currentModel) === "gemini"
@@ -270,6 +279,14 @@
 	<HelpModal onClose={() => (state.showHelp = false)} />
 {/if}
 
+{#if state.showMcpModal}
+	<McpModal
+		configs={state.mcpConfigs}
+		onUpdate={state.reloadMcpConfigs}
+		onClose={() => (state.showMcpModal = false)}
+	/>
+{/if}
+
 <div class="app-layout">
 	<Sidebar
 		conversations={state.conversations}
@@ -347,11 +364,15 @@
 			supportsImageGen={state.supportsImageGen}
 			supportsCodeInterpreter={state.supportsCodeInterpreter}
 			supportsWebSearch={state.supportsWebSearch}
+			supportsMcp={state.supportsMcp}
+			mcpServerCount={state.mcpServerCount}
 			bind:webSearch={state.webSearch}
 			bind:imageGeneration={state.imageGeneration}
 			bind:codeInterpreter={state.codeInterpreter}
+			bind:mcpEnabled={state.mcpEnabled}
 			onSend={handleSend}
 			onStop={state.handleStop}
+			onOpenMcpSettings={() => (state.showMcpModal = true)}
 		/>
 	</div>
 </div>

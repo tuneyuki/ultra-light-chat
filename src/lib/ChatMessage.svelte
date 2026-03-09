@@ -17,6 +17,7 @@
 		"response.web_search_call.searching": "検索中...",
 		"response.code_interpreter_call.interpreting": "コード実行中...",
 		"response.image_generation_call.generating": "画像生成中...",
+		"response.mcp_call.in_progress": "MCP実行中...",
 	};
 
 	let inputFiles = $derived(

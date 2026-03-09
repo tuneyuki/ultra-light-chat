@@ -1,5 +1,6 @@
 import { loadConversations, saveConversation, deleteConversation as _deleteConversation, deleteAllConversations as _deleteAllConversations, generateTitle } from '$lib/chatStore.js';
 import { loadPrompts, savePrompt as _savePrompt, deletePrompt as _deletePrompt } from '$lib/promptStore.js';
+import { loadMcpConfigs, MCP_CATALOG } from '$lib/mcpStore.js';
 import { DEFAULT_MODEL, MODELS } from '$lib/models.js';
 import { resolveImageUrls } from '$lib/imageUtils.js';
 
@@ -27,9 +28,14 @@ export function createChatState() {
     let webSearch = $state(false);
     let imageGeneration = $state(false);
     let codeInterpreter = $state(false);
+    let mcpEnabled = $state(false);
+    let showMcpModal = $state(false);
     let currentTheme = $state('dark');
     let showSettings = $state(false);
     let showHelp = $state(false);
+
+    /** @type {import('$lib/mcpStore.js').McpServerConfig[]} */
+    let mcpConfigs = $state([]);
 
     /** @type {import('$lib/promptStore.js').SavedPrompt[]} */
     let prompts = $state([]);
@@ -52,6 +58,8 @@ export function createChatState() {
     let supportsCodeInterpreter = $derived(currentModelDef?.supportsCodeInterpreter ?? false);
     let supportsWebSearch = $derived(currentModelDef?.supportsWebSearch ?? false);
     let supportsReasoning = $derived(currentModelDef?.reasoningEfforts ?? null);
+    let supportsMcp = $derived(currentModelDef?.supportsMcp ?? false);
+    let mcpServerCount = $derived(mcpConfigs.length);
 
     // --- Effects to reset toggles when model changes ---
     $effect(() => {
@@ -64,6 +72,10 @@ export function createChatState() {
 
     $effect(() => {
         if (!supportsWebSearch) webSearch = false;
+    });
+
+    $effect(() => {
+        if (!supportsMcp) mcpEnabled = false;
     });
 
     $effect(() => {
@@ -89,8 +101,26 @@ export function createChatState() {
     function init() {
         conversations = loadConversations();
         prompts = loadPrompts();
+        mcpConfigs = loadMcpConfigs();
         const savedTheme = localStorage.getItem('ulc-theme') || 'dark';
         applyTheme(savedTheme);
+    }
+
+    function reloadMcpConfigs() {
+        mcpConfigs = loadMcpConfigs();
+    }
+
+    /**
+     * Build MCP tool entries for OpenAI API from enabled configs.
+     * @returns {Array<{server_label: string, server_url: string, token: string}>}
+     */
+    function getActiveMcpServers() {
+        if (!mcpEnabled || mcpConfigs.length === 0) return [];
+        return mcpConfigs.map((c) => {
+            const def = MCP_CATALOG.find((d) => d.id === c.id);
+            if (!def) return null;
+            return { server_label: c.id, server_url: def.serverUrl, token: c.token };
+        }).filter(/** @type {(v: any) => v is {server_label: string, server_url: string, token: string}} */ (v) => v !== null);
     }
 
     // --- Conversation persistence ---
@@ -132,6 +162,7 @@ export function createChatState() {
         webSearch = false;
         imageGeneration = false;
         codeInterpreter = false;
+        mcpEnabled = false;
         reasoningEffort = supportsReasoning?.[0] ?? 'none';
     }
 
@@ -229,6 +260,11 @@ export function createChatState() {
         set imageGeneration(v) { imageGeneration = v; },
         get codeInterpreter() { return codeInterpreter; },
         set codeInterpreter(v) { codeInterpreter = v; },
+        get mcpEnabled() { return mcpEnabled; },
+        set mcpEnabled(v) { mcpEnabled = v; },
+        get showMcpModal() { return showMcpModal; },
+        set showMcpModal(v) { showMcpModal = v; },
+        get mcpConfigs() { return mcpConfigs; },
         get currentTheme() { return currentTheme; },
         get showSettings() { return showSettings; },
         set showSettings(v) { showSettings = v; },
@@ -245,6 +281,8 @@ export function createChatState() {
         get supportsCodeInterpreter() { return supportsCodeInterpreter; },
         get supportsWebSearch() { return supportsWebSearch; },
         get supportsReasoning() { return supportsReasoning; },
+        get supportsMcp() { return supportsMcp; },
+        get mcpServerCount() { return mcpServerCount; },
 
         // Actions
         init,
@@ -259,5 +297,7 @@ export function createChatState() {
         handleStop,
         setAbortController,
         clearAbortController,
+        reloadMcpConfigs,
+        getActiveMcpServers,
     };
 }

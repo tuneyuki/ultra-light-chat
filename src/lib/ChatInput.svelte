@@ -1,18 +1,22 @@
 <script>
 	import { formatFileSize } from "$lib/utils.js";
 
-	/** @type {{ isStreaming: boolean, supportsImage: boolean, supportsImageGen: boolean, supportsCodeInterpreter: boolean, supportsWebSearch: boolean, webSearch: boolean, imageGeneration: boolean, codeInterpreter: boolean, onSend: (text: string, images: File[], files: File[]) => void, onStop: () => void }} */
+	/** @type {{ isStreaming: boolean, supportsImage: boolean, supportsImageGen: boolean, supportsCodeInterpreter: boolean, supportsWebSearch: boolean, supportsMcp: boolean, mcpServerCount: number, webSearch: boolean, imageGeneration: boolean, codeInterpreter: boolean, mcpEnabled: boolean, onSend: (text: string, images: File[], files: File[]) => void, onStop: () => void, onOpenMcpSettings: () => void }} */
 	let {
 		isStreaming,
 		supportsImage,
 		supportsImageGen,
 		supportsCodeInterpreter,
 		supportsWebSearch,
+		supportsMcp,
+		mcpServerCount,
 		webSearch = $bindable(),
 		imageGeneration = $bindable(),
 		codeInterpreter = $bindable(),
+		mcpEnabled = $bindable(),
 		onSend,
 		onStop,
+		onOpenMcpSettings,
 	} = $props();
 
 	let inputText = $state("");
@@ -379,6 +383,51 @@
 					<span>Code</span>
 				</label>
 			{/if}
+			{#if supportsMcp}
+				<label
+					class="toggle-label"
+					title="MCPサーバーを使って外部サービスと連携します"
+				>
+					<span class="toggle-track" class:active={mcpEnabled}>
+						<span class="toggle-thumb"></span>
+					</span>
+					<input
+						type="checkbox"
+						bind:checked={mcpEnabled}
+						onchange={() => {
+							if (mcpEnabled && mcpServerCount === 0) onOpenMcpSettings();
+						}}
+						hidden
+					/>
+					<svg
+						class="toggle-icon"
+						width="14"
+						height="14"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						><path d="M2 4l6 4-6 4V4z" /><path d="M9 4l6 4-6 4V4z" /></svg
+					>
+					<span>MCP</span>
+					{#if mcpServerCount > 0}
+						<span class="mcp-count">({mcpServerCount})</span>
+					{/if}
+				</label>
+				<button
+					class="mcp-settings-btn"
+					onclick={onOpenMcpSettings}
+					title="MCPサーバー設定"
+					aria-label="MCP settings"
+				>
+					<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="8" cy="8" r="2.5"/>
+						<path d="M13.5 8a5.5 5.5 0 01-.3 1.3l1.5 1.2-1 1.7-1.8-.5a5.5 5.5 0 01-1.1.7L10.5 14h-2l-.3-1.6a5.5 5.5 0 01-1.1-.7l-1.8.5-1-1.7 1.5-1.2A5.5 5.5 0 015.5 8c0-.4 0-.9.1-1.3L4.1 5.5l1-1.7 1.8.5a5.5 5.5 0 011.1-.7L8.5 2h2l.3 1.6a5.5 5.5 0 011.1.7l1.8-.5 1 1.7-1.5 1.2c.2.4.3.9.3 1.3z"/>
+					</svg>
+				</button>
+			{/if}
 		</div>
 		<span class="disclaimer">「社外秘」「顧客情報」は入力禁止</span>
 	</div>
@@ -646,6 +695,32 @@
 
 	.toggle-track.active .toggle-thumb {
 		transform: translateX(12px);
+	}
+
+	.mcp-count {
+		font-size: 0.7rem;
+		color: var(--text-muted);
+	}
+
+	.mcp-settings-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		border: none;
+		border-radius: 4px;
+		background: transparent;
+		color: var(--text-muted);
+		cursor: pointer;
+		padding: 0;
+		margin-left: -8px;
+		transition: color 0.15s, background 0.15s;
+	}
+
+	.mcp-settings-btn:hover {
+		color: var(--text-primary);
+		background: var(--bg-hover);
 	}
 
 	.disclaimer {

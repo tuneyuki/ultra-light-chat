@@ -46,10 +46,11 @@ async function uploadFileToOpenAI(apiKey, dataUrl, filename) {
  * @param {boolean | undefined} codeInterpreter
  * @param {string | undefined} reasoningEffort
  * @param {string | undefined} containerId
+ * @param {Array<{server_label: string, server_url: string, token: string}> | undefined} mcpServers
  * @param {string | null} userId
  * @returns {Promise<Response>}
  */
-export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, imageGeneration, codeInterpreter, reasoningEffort, containerId, userId) {
+export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch, imageGeneration, codeInterpreter, reasoningEffort, containerId, mcpServers, userId) {
     const apiKey = env.OPENAI_API_KEY;
     if (!apiKey) {
         return new Response(JSON.stringify({ error: 'OPENAI_API_KEY is not configured' }), {
@@ -124,6 +125,21 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
         }
         tools.push({ type: 'code_interpreter', container });
     }
+    if (mcpServers && mcpServers.length > 0) {
+        for (const mcp of mcpServers) {
+            /** @type {Record<string, unknown>} */
+            const mcpTool = {
+                type: 'mcp',
+                server_label: mcp.server_label,
+                server_url: mcp.server_url,
+                require_approval: 'never'
+            };
+            if (mcp.token) {
+                mcpTool.headers = { Authorization: `Bearer ${mcp.token}` };
+            }
+            tools.push(mcpTool);
+        }
+    }
     if (tools.length > 0) body.tools = tools;
 
     if (reasoningEffort) {
@@ -157,7 +173,7 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
         images: imageCount,
         files: attachedFiles,
         system_prompt: systemPrompt || null,
-        tools: { web_search: !!webSearch, image_generation: !!imageGeneration, code_interpreter: !!codeInterpreter },
+        tools: { web_search: !!webSearch, image_generation: !!imageGeneration, code_interpreter: !!codeInterpreter, mcp: (mcpServers || []).map((s) => s.server_label) },
         reasoning_effort: reasoningEffort || null,
         has_previous_response: !!chatId,
         user: userId
@@ -246,6 +262,11 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
                     try {
                         const data = JSON.parse(jsonStr);
 
+                        // Forward error events as text so the user sees them
+                        if (data.type === 'error' && data.error?.message) {
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'response.output_text.delta', delta: `\n\n[Error: ${data.error.message}]` })}\n\n`));
+                        }
+
                         // Forward text deltas as-is
                         if (data.type === 'response.output_text.delta') {
                             controller.enqueue(encoder.encode(line + '\n\n'));
@@ -256,6 +277,7 @@ export async function handleOpenAI(model, input, chatId, systemPrompt, webSearch
                             'response.web_search_call.searching',
                             'response.code_interpreter_call.interpreting',
                             'response.image_generation_call.generating',
+                            'response.mcp_call.in_progress',
                         ];
                         if (statusEvents.includes(data.type)) {
                             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'status', status: data.type })}\n\n`));
